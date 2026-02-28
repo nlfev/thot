@@ -1,0 +1,251 @@
+"""
+User routes for profile and user management
+"""
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.schemas import (
+    UserResponse,
+    UserDetailResponse,
+    UserUpdateRequest,
+    PasswordChangeRequest,
+    UserListResponse,
+    UserDetailSupportResponse,
+    UserUpdateSupportRequest,
+)
+from app.services import UserService
+from app.utils import decode_access_token
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+
+router = APIRouter(
+    prefix="/users",
+    tags=["users"],
+)
+
+security = HTTPBearer()
+
+
+async def get_current_user(db: Session = Depends(get_db), credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """
+    Get current user from JWT token
+    """
+    token = credentials.credentials
+    user_id = decode_access_token(token)
+
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
+
+    user = UserService.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+
+    return user
+
+
+@router.get("/profile", response_model=UserDetailResponse)
+async def get_user_profile(
+    current_user = Depends(get_current_user),
+):
+    """
+    Get current user profile
+    """
+    return UserDetailResponse(
+        id=current_user.id,
+        username=current_user.username,
+        email=current_user.email,
+        first_name=current_user.first_name,
+        last_name=current_user.last_name,
+        current_language=current_user.current_language,
+        corporate_number=current_user.corporate_number,
+        corporate_approved=current_user.corporate_approved,
+        active=current_user.active,
+        created_on=current_user.created_on,
+        roles=current_user.get_roles(),
+        permissions=current_user.get_permissions(),
+    )
+
+
+@router.put("/profile", response_model=UserResponse)
+async def update_user_profile(
+    request: UserUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Update current user profile
+    """
+    user = UserService.update_user_profile(
+        db=db,
+        user_id=str(current_user.id),
+        first_name=request.first_name,
+        last_name=request.last_name,
+        current_language=request.current_language,
+    )
+
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        current_language=user.current_language,
+        corporate_number=user.corporate_number,
+        corporate_approved=user.corporate_approved,
+        active=user.active,
+        created_on=user.created_on,
+        roles=user.get_roles(),
+    )
+
+
+@router.post("/password-change")
+async def change_password(
+    request: PasswordChangeRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Change user password
+    """
+    success, message = UserService.change_password(
+        db=db,
+        user_id=str(current_user.id),
+        current_password=request.current_password,
+        new_password=request.new_password,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=message
+        )
+
+    return {"message": message}
+
+
+@router.get("", response_model=dict)
+async def list_users(
+    skip: int = 0,
+    limit: int = 10,
+    filter_username: str = None,
+    filter_email: str = None,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    List users with filters (support/admin only)
+    """
+    # TODO: Check if user has support/admin role
+
+    users, total = UserService.list_users(
+        db=db,
+        skip=skip,
+        limit=limit,
+        filter_username=filter_username,
+        filter_email=filter_email,
+    )
+
+    user_responses = [
+        UserListResponse(
+            id=u.id,
+            username=u.username,
+            first_name=u.first_name,
+            last_name=u.last_name,
+            email=u.email,
+            corporate_number=u.corporate_number,
+            corporate_approved=u.corporate_approved,
+            active=u.active,
+        )
+        for u in users
+    ]
+
+    return {
+        "total": total,
+        "page": skip // limit + 1,
+        "page_size": limit,
+        "total_pages": (total + limit - 1) // limit,
+        "items": user_responses,
+    }
+
+
+@router.get("/{user_id}", response_model=UserDetailSupportResponse)
+async def get_user_detail(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Get user detail (support/admin only)
+    """
+    # TODO: Check if user has support/admin role
+
+    user = UserService.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    return UserDetailSupportResponse(
+        id=user.id,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
+        corporate_number=user.corporate_number,
+        corporate_approved=user.corporate_approved,
+        active=user.active,
+        created_on=user.created_on,
+        last_modified_on=user.last_modified_on,
+        unsuccessful_logins=user.unsuccessful_logins,
+        timestamp_last_successful_login=user.timestamp_last_successful_login,
+    )
+
+
+@router.put("/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: str,
+    request: UserUpdateSupportRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Update user as support/admin
+    """
+    # TODO: Check if user has support/admin role
+
+    user = UserService.update_user_as_support(
+        db=db,
+        user_id=user_id,
+        admin_id=str(current_user.id),
+        corporate_number=request.corporate_number,
+        corporate_approved=request.corporate_approved,
+    )
+
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        current_language=user.current_language,
+        corporate_number=user.corporate_number,
+        corporate_approved=user.corporate_approved,
+        active=user.active,
+        created_on=user.created_on,
+        roles=user.get_roles(),
+    )
+
+
+# TODO: Implement remaining endpoints:
+# - PUT /{user_id}/password-reset - Admin password reset
+# - PUT /{user_id}/activate - Activate user
+# - PUT /{user_id}/deactivate - Deactivate user

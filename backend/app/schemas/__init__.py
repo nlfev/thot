@@ -1,0 +1,292 @@
+"""
+Pydantic schemas for request/response validation
+"""
+
+from __future__ import annotations
+from pydantic import BaseModel, EmailStr, Field, field_validator
+from typing import Optional, List
+from datetime import datetime
+from uuid import UUID
+
+
+# ========================
+# User Schemas
+# ========================
+
+class UserBase(BaseModel):
+    """Base user schema"""
+
+    username: str = Field(..., min_length=3, max_length=255)
+    email: EmailStr
+    first_name: Optional[str] = Field(None, max_length=255)
+    last_name: Optional[str] = Field(None, max_length=255)
+    current_language: str = Field("en", max_length=2)
+    corporate_number: Optional[str] = Field(None, max_length=255)
+
+
+class UserRegisterRequest(BaseModel):
+    """User registration request"""
+
+    username: str = Field(..., min_length=3, max_length=255)
+    email: EmailStr
+    tos_agreed: bool = Field(..., description="User must agree to Terms of Service")
+
+    @field_validator("tos_agreed")
+    @classmethod
+    def validate_tos_agreed(cls, v):
+        if not v:
+            raise ValueError("You must agree to the Terms of Service")
+        return v
+
+
+class UserCompleteRegistration(BaseModel):
+    """Complete user registration with password"""
+
+    first_name: str = Field(..., min_length=1, max_length=255)
+    last_name: str = Field(..., min_length=1, max_length=255)
+    password: str = Field(..., min_length=10, max_length=60)
+    password_confirm: str = Field(..., min_length=10, max_length=60)
+    corporate_number: Optional[str] = Field(None, max_length=255)
+    enable_otp: bool = Field(False)
+
+    @field_validator("password_confirm")
+    @classmethod
+    def validate_passwords_match(cls, v, info):
+        if "password" in info.data and v != info.data["password"]:
+            raise ValueError("Passwords do not match")
+        return v
+
+
+class UserLoginRequest(BaseModel):
+    """User login request"""
+
+    username: str
+    password: str
+    otp_code: Optional[str] = None
+
+
+class UserResponse(BaseModel):
+    """User response schema"""
+
+    id: UUID
+    username: str
+    email: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+    current_language: str
+    corporate_number: Optional[str]
+    corporate_approved: bool
+    active: bool
+    created_on: datetime
+    roles: List[str] = []
+
+    class Config:
+        from_attributes = True
+
+
+class UserLoginResponse(BaseModel):
+    """User login response"""
+
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
+class UserDetailResponse(UserResponse):
+    """Detailed user response with permissions"""
+
+    permissions: List[str] = []
+
+
+class UserUpdateRequest(BaseModel):
+    """Update user profile"""
+
+    first_name: Optional[str] = Field(None, max_length=255)
+    last_name: Optional[str] = Field(None, max_length=255)
+    current_language: Optional[str] = Field(None, max_length=2)
+
+
+class PasswordChangeRequest(BaseModel):
+    """Change password request"""
+
+    current_password: str
+    new_password: str = Field(..., min_length=10, max_length=60)
+    new_password_confirm: str = Field(..., min_length=10, max_length=60)
+
+    @field_validator("new_password_confirm")
+    @classmethod
+    def validate_passwords_match(cls, v, info):
+        if "new_password" in info.data and v != info.data["new_password"]:
+            raise ValueError("Passwords do not match")
+        return v
+
+
+class PasswordResetRequest(BaseModel):
+    """Request password reset"""
+
+    email: EmailStr
+
+
+class PasswordResetConfirmRequest(BaseModel):
+    """Confirm password reset"""
+
+    new_password: str = Field(..., min_length=10, max_length=60)
+    new_password_confirm: str = Field(..., min_length=10, max_length=60)
+
+    @field_validator("new_password_confirm")
+    @classmethod
+    def validate_passwords_match(cls, v, info):
+        if "new_password" in info.data and v != info.data["new_password"]:
+            raise ValueError("Passwords do not match")
+        return v
+
+
+class EmailChangeRequest(BaseModel):
+    """Request email change"""
+
+    new_email: EmailStr
+
+
+class EmailChangeConfirmRequest(BaseModel):
+    """Confirm email change with verification code"""
+
+    verification_code: str = Field(..., min_length=6, max_length=6)
+
+
+class OTPEnableRequest(BaseModel):
+    """Request to enable OTP"""
+
+    otp_code: str = Field(..., min_length=6, max_length=6)
+
+
+# ========================
+# Role Schemas
+# ========================
+
+class RoleBase(BaseModel):
+    """Base role schema"""
+
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=500)
+
+
+class RoleResponse(RoleBase):
+    """Role response schema"""
+
+    id: UUID
+    active: bool
+    created_on: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ========================
+# Permission Schemas
+# ========================
+
+class PermissionBase(BaseModel):
+    """Base permission schema"""
+
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=500)
+
+
+class PermissionResponse(PermissionBase):
+    """Permission response schema"""
+
+    id: UUID
+    active: bool
+    created_on: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# ========================
+# User Management (Support/Admin)
+# ========================
+
+class UserListResponse(BaseModel):
+    """User list item for support/admin"""
+
+    id: UUID
+    username: str
+    first_name: Optional[str]
+    last_name: Optional[str]
+    email: str
+    corporate_number: Optional[str]
+    corporate_approved: bool
+    active: bool
+
+
+class UserDetailSupportResponse(UserListResponse):
+    """Detailed user response for support/admin"""
+
+    created_on: datetime
+    last_modified_on: Optional[datetime]
+    unsuccessful_logins: int
+    timestamp_last_successful_login: Optional[datetime]
+
+
+class UserUpdateSupportRequest(BaseModel):
+    """Update user as support/admin"""
+
+    corporate_number: Optional[str] = Field(None, max_length=255)
+    corporate_approved: Optional[bool] = None
+
+
+# ========================
+# Generic Schemas
+# ========================
+
+class PaginatedResponse(BaseModel):
+    """Generic paginated response"""
+
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+    items: List[dict]
+
+
+class ErrorResponse(BaseModel):
+    """Error response"""
+
+    detail: str
+    error_code: Optional[str] = None
+
+
+class SuccessResponse(BaseModel):
+    """Generic success response"""
+
+    message: str
+    data: Optional[dict] = None
+
+
+# Export all schemas
+__all__ = [
+    "UserRegisterRequest",
+    "UserCompleteRegistration",
+    "UserLoginRequest",
+    "UserLoginResponse",
+    "UserResponse",
+    "UserDetailResponse",
+    "UserUpdateRequest",
+    "PasswordChangeRequest",
+    "PasswordResetRequest",
+    "PasswordResetConfirmRequest",
+    "EmailChangeRequest",
+    "EmailChangeConfirmRequest",
+    "OTPEnableRequest",
+    "RoleBase",
+    "RoleResponse",
+    "PermissionBase",
+    "PermissionResponse",
+    "UserListResponse",
+    "UserDetailSupportResponse",
+    "UserUpdateSupportRequest",
+    "PaginatedResponse",
+    "ErrorResponse",
+    "SuccessResponse",
+]

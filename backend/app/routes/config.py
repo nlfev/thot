@@ -1,0 +1,43 @@
+"""
+Configuration Routes
+"""
+
+from fastapi import APIRouter
+from config import config
+
+router = APIRouter(prefix="/config", tags=["configuration"])
+
+
+@router.get("")
+async def get_app_config():
+    """
+    Get application configuration.
+    
+    Returns public application configuration including app metadata,
+    feature flags, and UI settings. Safe to expose to frontend.
+    """
+    return {
+        "appName": config.APP_NAME,
+        "appVersion": config.APP_VERSION,
+        "companyName": config.COMPANY_NAME,
+        "logoUrl": config.LOGO_URL,
+        "copyrightYear": config.COPYRIGHT_YEAR,
+        # UI Configuration
+        "itemsPerPageDefault": config.ITEMS_PER_PAGE_DEFAULT,
+        "itemsPerPageOptions": config.ITEMS_PER_PAGE_OPTIONS,
+        # Security Configuration
+        "tokenRefreshIntervalMinutes": config.TOKEN_REFRESH_INTERVAL_MINUTES,
+        "sessionTimeoutMinutes": config.SESSION_TIMEOUT_MINUTES,
+        # Feature Flags
+        "features": {
+            "otp": config.FEATURE_OTP_ENABLED,
+            "emailVerification": config.FEATURE_EMAIL_VERIFICATION_ENABLED,
+            "corporateApprovals": config.FEATURE_CORPORATE_APPROVALS_ENABLED,
+        },
+        # Languages
+        "languages": {
+            "en": "English",
+            "de": "Deutsch",
+        },
+        "defaultLanguage": config.DEFAULT_LANGUAGE,
+    }

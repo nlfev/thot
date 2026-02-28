@@ -1,0 +1,74 @@
+"""
+Main FastAPI application
+"""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+import logging
+
+from config import config
+from app.database import Base, engine, get_db
+
+# Configure logging
+logging.basicConfig(level=config.LOG_LEVEL)
+logger = logging.getLogger(__name__)
+
+# NOTE: Do NOT create tables here. Use `python scripts/init_db.py` instead.
+# This prevents database connection attempts during app import.
+
+# Create FastAPI app
+app = FastAPI(
+    title=config.APP_NAME,
+    version=config.APP_VERSION,
+    description="RESTful API for NLF Database Management",
+)
+
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Add Trusted Host middleware
+app.add_middleware(
+    TrustedHostMiddleware,
+    allowed_hosts=["localhost", "127.0.0.1", "*.example.com"],
+)
+
+
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "name": config.APP_NAME,
+        "version": config.APP_VERSION,
+        "status": "running"
+    }
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "app": config.APP_NAME
+    }
+
+
+# NOTE: Router imports are deferred to avoid circular imports and schema
+# resolution issues during module initialization. They are loaded only
+# when the app is actually run (see app/main.py).
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=config.DEBUG,
+    )
