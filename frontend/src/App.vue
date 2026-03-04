@@ -9,6 +9,7 @@
 <script>
 import { defineComponent } from 'vue'
 import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 
 export default defineComponent({
@@ -18,6 +19,7 @@ export default defineComponent({
   },
   setup() {
     const appStore = useAppStore()
+    const authStore = useAuthStore()
 
     // Set initial language
     if (appStore.language) {
@@ -26,7 +28,12 @@ export default defineComponent({
 
     return {
       appStore,
+      authStore,
     }
+  },
+  async mounted() {
+    // Load user data if token exists
+    await this.authStore.fetchUser()
   },
 })
 </script>

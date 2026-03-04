@@ -88,6 +88,22 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async fetchUser() {
+      if (!this.token) {
+        return false
+      }
+
+      try {
+        const response = await api.get('/users/profile')
+        this.user = response.data
+        return true
+      } catch (error) {
+        // Token might be invalid, clear it
+        this.logout()
+        return false
+      }
+    },
+
     clearError() {
       this.error = null
     },

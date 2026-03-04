@@ -148,6 +148,8 @@ export const messages = {
       currentLanguage: 'Language Preference',
       accountLocked: 'Your account is locked',
       passwordRequirements: 'Password must be at least 10 characters with uppercase, lowercase, and numbers or special characters',
+      passwordChanged: 'Your password has been changed successfully',
+      pendingApproval: 'Pending Approval',
     },
 
     // Admin/Support
@@ -342,6 +344,8 @@ export const messages = {
       currentLanguage: 'Spracheinstellung',
       accountLocked: 'Ihr Konto ist gesperrt',
       passwordRequirements: 'Das Passwort muss mindestens 10 Zeichen lang sein und Großbuchstaben, Kleinbuchstaben sowie Zahlen oder Sonderzeichen enthalten',
+      passwordChanged: 'Ihr Passwort wurde erfolgreich geändert',
+      pendingApproval: 'Genehmigung ausstehend',
     },
 
     // Admin/Support

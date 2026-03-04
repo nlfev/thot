@@ -32,12 +32,12 @@ export const userService = {
   /**
    * Change password
    */
-  async changePassword(currentPassword, newPassword) {
+  async changePassword(data) {
     try {
       const response = await api.post('/users/password-change', {
-        current_password: currentPassword,
-        new_password: newPassword,
-        new_password_confirm: newPassword,
+        current_password: data.current_password,
+        new_password: data.new_password,
+        new_password_confirm: data.new_password_confirm,
       })
       return response.data
     } catch (error) {
