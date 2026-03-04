@@ -4,8 +4,8 @@
       <h2>{{ $t('auth.passwordReset') }}</h2>
       <form @submit.prevent="handlePasswordReset">
         <div class="form-group">
-          <label for="email">{{ $t('common.email') }}</label>
-          <input v-model="form.email" type="email" id="email" required />
+          <label for="username">{{ $t('common.username') }}</label>
+          <input v-model="form.username" type="text" id="username" required />
         </div>
         <button type="submit" class="btn btn-primary" :disabled="isLoading">
           {{ isLoading ? $t('common.loading') : $t('common.submit') }}
@@ -30,7 +30,7 @@ export default defineComponent({
     return {
       authStore,
       form: {
-        email: '',
+        username: '',
       },
       isLoading: false,
     }
@@ -39,7 +39,7 @@ export default defineComponent({
     async handlePasswordReset() {
       this.isLoading = true
 
-      const success = await this.authStore.resetPassword(this.form.email)
+      const success = await this.authStore.resetPassword(this.form.username)
 
       if (success) {
         alert(this.$t('auth.resetEmailSent'))

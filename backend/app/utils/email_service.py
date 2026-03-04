@@ -143,29 +143,62 @@ class EmailService:
         username: str,
         reset_link: str,
         expiration_hours: int = 24,
+        language: str = "en",
+        initiated_by_support: bool = False,
     ) -> bool:
         """Send password reset email"""
-        subject = "Reset Your Password"
+        content = {
+            "en": {
+                "subject": "Reset Your Password",
+                "title": "Password Reset Request",
+                "greeting": f"Hi {username},",
+                "message": "We received a request to reset your password. Click the link below to set a new password:",
+                "message_support": "Your password reset was initiated by support. Click the link below to set a new password:",
+                "button": "Reset Password",
+                "expiry": f"This link will expire in {expiration_hours} hour(s).",
+                "ignore": "If you did not request a password reset, please ignore this email.",
+                "plain_message": f"Please reset your password by visiting: {reset_link}",
+                "plain_support": f"Support initiated this password reset. Please reset your password by visiting: {reset_link}",
+            },
+            "de": {
+                "subject": "Passwort zurücksetzen",
+                "title": "Anfrage zum Zurücksetzen des Passworts",
+                "greeting": f"Hallo {username},",
+                "message": "Wir haben eine Anfrage zum Zurücksetzen Ihres Passworts erhalten. Klicken Sie auf den folgenden Link, um ein neues Passwort festzulegen:",
+                "message_support": "Ihr Passwort-Reset wurde vom Support gestartet. Klicken Sie auf den folgenden Link, um ein neues Passwort festzulegen:",
+                "button": "Passwort zurücksetzen",
+                "expiry": f"Dieser Link ist {expiration_hours} Stunde(n) gültig.",
+                "ignore": "Wenn Sie kein Zurücksetzen angefordert haben, ignorieren Sie bitte diese E-Mail.",
+                "plain_message": f"Bitte setzen Sie Ihr Passwort hier zurück: {reset_link}",
+                "plain_support": f"Der Support hat den Passwort-Reset gestartet. Bitte setzen Sie Ihr Passwort hier zurück: {reset_link}",
+            },
+        }
+
+        lang = content.get(language, content["en"])
+        subject = lang["subject"]
+        body_message = lang["message_support"] if initiated_by_support else lang["message"]
+        plain_message = lang["plain_support"] if initiated_by_support else lang["plain_message"]
+
         html_content = f"""
         <html>
             <body>
-                <h2>Password Reset Request</h2>
-                <p>Hi {username},</p>
-                <p>We received a request to reset your password. Click the link below to set a new password:</p>
+                <h2>{lang["title"]}</h2>
+                <p>{lang["greeting"]}</p>
+                <p>{body_message}</p>
                 <p>
                     <a href="{reset_link}" style="background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                        Reset Password
+                        {lang["button"]}
                     </a>
                 </p>
-                <p>This link will expire in {expiration_hours} hours.</p>
-                <p>If you did not request a password reset, please ignore this email.</p>
+                <p>{lang["expiry"]}</p>
+                <p>{lang["ignore"]}</p>
             </body>
         </html>
         """
         plain_text = (
-            f"Hi {username},\n\n"
-            f"Please reset your password by visiting: {reset_link}\n\n"
-            f"This link will expire in {expiration_hours} hours."
+            f"{lang['greeting']}\n\n"
+            f"{plain_message}\n\n"
+            f"{lang['expiry']}"
         )
         return self.send_email(to_email, subject, html_content, plain_text)
 

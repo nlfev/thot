@@ -73,12 +73,12 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async resetPassword(email) {
+    async resetPassword(username) {
       this.isLoading = true
       this.error = null
 
       try {
-        await api.post('/auth/password-reset', { email })
+        await api.post('/auth/password-reset', { username })
         return true
       } catch (error) {
         this.error = error.response?.data?.detail || 'Password reset failed'

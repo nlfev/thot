@@ -95,11 +95,23 @@ export const authService = {
   /**
    * Request password reset
    */
-  async requestPasswordReset(email) {
+  async requestPasswordReset(username) {
     try {
       const response = await api.post('/auth/password-reset', {
-        email,
+        username,
       })
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Validate password reset token
+   */
+  async validatePasswordResetToken(token) {
+    try {
+      const response = await api.get(`/auth/password-reset/confirm/${token}`)
       return response.data
     } catch (error) {
       throw error.response?.data || error

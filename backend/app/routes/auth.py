@@ -21,14 +21,10 @@ from app.schemas import (
     EmailChangeConfirmRequest,
     OTPEnableRequest,
 )
-from app.services import UserService, RegistrationService
+from app.services import UserService, RegistrationService, PasswordResetService
 from app.utils import (
     create_access_token,
-    validate_password_requirements,
-    generate_email_token,
-    verify_password,
     verify_otp,
-    generate_short_code,
 )
 from app.utils.email_service import email_service
 from config import config
@@ -248,24 +244,46 @@ async def request_password_reset(
     """
     Request password reset via email
     """
-    user = UserService.get_user_by_email(db, request.email)
+    user, token_entry, error = PasswordResetService.start_user_password_reset(
+        db=db,
+        username=request.username,
+    )
 
     # Always return success for security
-    if user:
-        # TODO: Generate password reset token
-        # token, _ = generate_email_token()
-        # reset_link = f"{config.FRONTEND_URL}/password-reset/confirm/{token}"
-        # email_service.send_password_reset_email(
-        #     user.email,
-        #     user.username,
-        #     reset_link,
-        #     config.PASSWORD_RESET_TOKEN_EXPIRE_HOURS
-        # )
-
-        pass
+    if user and token_entry and not error:
+        reset_link = f"{config.FRONTEND_URL}/auth/password-reset/confirm/{token_entry.token}"
+        email_service.send_password_reset_email(
+            to_email=user.email,
+            username=user.username,
+            reset_link=reset_link,
+            expiration_hours=config.USER_PASSWORD_RESET_TOKEN_EXPIRE_HOURS,
+            language=user.current_language,
+            initiated_by_support=False,
+        )
 
     return {
-        "message": "If the email exists, you will receive password reset instructions"
+        "message": f"If the username exists, you will receive password reset instructions by email. The link is valid for {config.USER_PASSWORD_RESET_TOKEN_EXPIRE_HOURS} hour(s)."
+    }
+
+
+@router.get("/password-reset/confirm/{token}")
+async def validate_password_reset_token(
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Validate password reset token before showing reset form
+    """
+    token_entry, error = PasswordResetService.get_valid_token(db, token)
+    if error or not token_entry:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error or "Invalid reset token",
+        )
+
+    return {
+        "message": "Password reset token is valid",
+        "expires_at": token_entry.expires_at.isoformat(),
     }
 
 
@@ -278,15 +296,30 @@ async def confirm_password_reset(
     """
     Confirm password reset with new password
     """
-    # TODO: Verify token and get user from token
-    # user_id = verify_password_reset_token(token)
+    token_entry, error = PasswordResetService.get_valid_token(db, token)
+    if error or not token_entry:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error or "Invalid reset token",
+        )
 
-    # TODO: Validate and update password
-    # success, message = UserService.reset_password(
-    #     db=db,
-    #     user_id=user_id,
-    #     new_password=request.new_password
-    # )
+    success, message = UserService.reset_password(
+        db=db,
+        user_id=str(token_entry.userid),
+        new_password=request.new_password,
+    )
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=message,
+        )
+
+    marked, mark_error = PasswordResetService.mark_token_used(db, token_entry)
+    if not marked:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=mark_error or "Could not finalize password reset",
+        )
 
     return {
         "message": "Password reset successfully"

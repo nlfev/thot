@@ -165,7 +165,7 @@ class PasswordChangeRequest(BaseModel):
 class PasswordResetRequest(BaseModel):
     """Request password reset"""
 
-    email: EmailStr
+    username: str = Field(..., min_length=3, max_length=255)
 
 
 class PasswordResetConfirmRequest(BaseModel):

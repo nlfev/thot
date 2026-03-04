@@ -16,8 +16,11 @@ from app.schemas import (
     UserUpdateSupportRequest,
 )
 from app.services import UserService
+from app.services.password_reset_service import PasswordResetService
 from app.utils import decode_access_token
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from app.utils.email_service import email_service
+from config import config
 
 
 router = APIRouter(
@@ -246,6 +249,46 @@ async def update_user(
 
 
 # TODO: Implement remaining endpoints:
-# - PUT /{user_id}/password-reset - Admin password reset
 # - PUT /{user_id}/activate - Activate user
 # - PUT /{user_id}/deactivate - Deactivate user
+
+
+@router.put("/{user_id}/password-reset")
+async def support_reset_user_password(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Start password reset process for a user (support/admin only)
+    """
+    if not (current_user.has_role("support") or current_user.has_role("admin")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    user, token_entry, error = PasswordResetService.start_support_password_reset(
+        db=db,
+        user_id=user_id,
+    )
+    if error or not user or not token_entry:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error or "Could not start password reset",
+        )
+
+    reset_link = f"{config.FRONTEND_URL}/auth/password-reset/confirm/{token_entry.token}"
+    email_service.send_password_reset_email(
+        to_email=user.email,
+        username=user.username,
+        reset_link=reset_link,
+        expiration_hours=config.PASSWORD_RESET_TOKEN_EXPIRE_HOURS,
+        language=user.current_language,
+        initiated_by_support=True,
+    )
+
+    return {
+        "message": "Password reset email has been sent",
+        "expires_in_hours": config.PASSWORD_RESET_TOKEN_EXPIRE_HOURS,
+    }
