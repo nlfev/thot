@@ -25,6 +25,12 @@ const routes = [
     meta: { requiresAuth: false },
   },
   {
+    path: '/auth/register/confirm/:token',
+    name: 'RegisterConfirm',
+    component: () => import('@/views/auth/RegisterConfirm.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
     path: '/auth/password-reset',
     name: 'PasswordReset',
     component: () => import('@/views/auth/PasswordReset.vue'),

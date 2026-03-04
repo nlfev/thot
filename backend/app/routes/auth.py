@@ -5,6 +5,7 @@ Authentication routes for user registration, login, and password management
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
+import logging
 
 from app.database import get_db
 from app.models import User
@@ -20,7 +21,7 @@ from app.schemas import (
     EmailChangeConfirmRequest,
     OTPEnableRequest,
 )
-from app.services import UserService
+from app.services import UserService, RegistrationService
 from app.utils import (
     create_access_token,
     validate_password_requirements,
@@ -32,6 +33,7 @@ from app.utils import (
 from app.utils.email_service import email_service
 from config import config
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/auth",
@@ -45,25 +47,10 @@ async def register_user(
     db: Session = Depends(get_db),
 ):
     """
-    Register a new user
+    Register a new user - Step 1
     User must agree to Terms of Service
+    Sends confirmation email with token link
     """
-    # Check if username already exists
-    existing_user = UserService.get_user_by_username(db, request.username)
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
-        )
-
-    # Check if email already exists
-    existing_email = UserService.get_user_by_email(db, request.email)
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-
     # Check if TOS agreed
     if not request.tos_agreed:
         raise HTTPException(
@@ -71,20 +58,63 @@ async def register_user(
             detail="You must agree to the Terms of Service"
         )
 
-    # TODO: Generate email token and send verification email
-    # token, _ = generate_email_token()
-    # verification_link = f"{config.FRONTEND_URL}/register/confirm/{token}"
-    # email_service.send_registration_confirmation_email(
-    #     request.email,
-    #     request.username,
-    #     verification_link,
-    #     config.EMAIL_TOKEN_EXPIRE_HOURS
-    # )
+    # Initiate registration and cleanup expired entries
+    registration, error = RegistrationService.initiate_registration(
+        db=db,
+        username=request.username,
+        email=request.email
+    )
+
+    if error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error
+        )
+
+    # Send registration confirmation email
+    confirmation_link = f"{config.FRONTEND_URL}/auth/register/confirm/{registration.token}"
+    email_sent = email_service.send_registration_confirmation_email(
+        to_email=registration.email,
+        username=registration.username,
+        confirmation_link=confirmation_link,
+        expiration_hours=config.REGISTRATION_TOKEN_EXPIRE_HOURS,
+        language=request.language,
+    )
+    
+    if not email_sent:
+        logger.warning(f"Email sending failed for registration {registration.id}, but registration was created")
 
     return {
-        "message": "Registration successful. Check your email for confirmation.",
-        "username": request.username,
-        "email": request.email,
+        "message": f"Registration initiated. Please check your email ({registration.email}) for confirmation link. The link will expire in {config.REGISTRATION_TOKEN_EXPIRE_HOURS} hours.",
+        "username": registration.username,
+        "email": registration.email,
+        "expires_in_hours": config.REGISTRATION_TOKEN_EXPIRE_HOURS,
+    }
+
+
+@router.get("/register/confirm/{token}")
+async def get_registration_confirmation(
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """
+    Get registration details to confirm before completing registration
+    Used by frontend to show the registration form
+    """
+    # Cleanup expired registrations and get token
+    registration, error = RegistrationService.get_registration_by_token(db, token)
+
+    if error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error
+        )
+
+    return {
+        "token": token,
+        "username": registration.username,
+        "email": registration.email,
+        "expires_at": registration.expires_at.isoformat(),
     }
 
 
@@ -95,46 +125,57 @@ async def confirm_registration(
     db: Session = Depends(get_db),
 ):
     """
-    Complete user registration with confirmed email
+    Complete user registration with password - Step 2
     """
-    # TODO: Verify token validity
-    # TODO: Check token expiration
-
-    # Validate password requirements
-    is_valid, error_msg = validate_password_requirements(request.password)
-    if not is_valid:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=error_msg
+    try:
+        # Complete registration and create user
+        user, otp_setup_data, error = RegistrationService.complete_registration(
+            db=db,
+            token=token,
+            first_name=request.first_name,
+            last_name=request.last_name,
+            password=request.password,
+            corporate_number=request.corporate_number,
+            enable_otp=request.enable_otp,
+            current_language=request.current_language,
         )
 
-    # Check if passwords match
-    if request.password != request.password_confirm:
+        if error:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=error
+            )
+
+        # Prepare response
+        response_data = {
+            "message": "Registration completed successfully",
+            "user": {
+                "id": str(user.id),
+                "username": user.username,
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "roles": user.get_roles(),
+            }
+        }
+
+        # Add OTP setup data if enabled
+        if request.enable_otp and otp_setup_data:
+            response_data["otp_setup"] = {
+                "qr_code": otp_setup_data.get("qr_code"),
+                "manual_entry": otp_setup_data.get("manual_entry"),
+            }
+
+        return response_data
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error confirming registration: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Passwords do not match"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while completing registration"
         )
-
-    # TODO: Create user from token data
-    # is_first_user = db.query(User).count() == 0
-    # user = UserService.create_user(
-    #     db=db,
-    #     username=...,  # from token
-    #     email=...,     # from token
-    #     password=request.password,
-    #     first_name=request.first_name,
-    #     last_name=request.last_name,
-    #     corporate_number=request.corporate_number,
-    #     is_first_user=is_first_user,
-    # )
-
-    # if request.enable_otp:
-    #     otp_secret = UserService.enable_otp(db, str(user.id))
-    #     # TODO: Return QR code or secret for setup
-
-    return {
-        "message": "Registration completed successfully",
-    }
 
 
 @router.post("/login", response_model=UserLoginResponse)

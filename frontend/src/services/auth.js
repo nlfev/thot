@@ -22,21 +22,34 @@ export const authService = {
   },
 
   /**
+   * Get registration confirmation data (validate token)
+   */
+  async getRegistrationConfirm(token) {
+    try {
+      const response = await api.get(`/auth/register/confirm/${token}`)
+      return response
+    } catch (error) {
+      throw error
+    }
+  },
+
+  /**
    * Complete registration with password
    */
-  async completeRegistration(token, data) {
+  async confirmRegistration(token, data) {
     try {
       const response = await api.post(`/auth/register/confirm/${token}`, {
-        first_name: data.firstName,
-        last_name: data.lastName,
+        first_name: data.first_name,
+        last_name: data.last_name,
         password: data.password,
-        password_confirm: data.passwordConfirm,
-        corporate_number: data.corporateNumber,
-        enable_otp: data.enableOTP || false,
+        password_confirm: data.password_confirm,
+        corporate_number: data.corporate_number,
+        enable_otp: data.enable_otp || false,
+        current_language: data.current_language,
       })
-      return response.data
+      return response
     } catch (error) {
-      throw error.response?.data || error
+      throw error
     }
   },
 

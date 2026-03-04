@@ -8,6 +8,7 @@ from .permission import Permission
 from .user_role import UserRole
 from .role_permission import RolePermission
 from .base import BaseModel
+from .user_registration import UserRegistration
 
 __all__ = [
     "User",
@@ -16,4 +17,5 @@ __all__ = [
     "UserRole",
     "RolePermission",
     "BaseModel",
+    "UserRegistration",
 ]

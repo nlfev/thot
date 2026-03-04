@@ -54,18 +54,21 @@ export default defineComponent({
     async handleRegister() {
       this.isLoading = true
 
-      const success = await this.authStore.register(
-        this.form.username,
-        this.form.email,
-        this.form.tosAgreed
-      )
+      try {
+        const response = await this.authStore.register(
+          this.form.username,
+          this.form.email,
+          this.form.tosAgreed,
+          this.$i18n.locale
+        )
 
-      if (success) {
-        this.$t('messages.registrationSuccess')
-        this.$router.push('/auth/login')
+        // Show success message
+        alert(response.message || this.$t('auth.registrationSuccess'))
+      } catch (error) {
+        alert(error.detail || this.$t('auth.registrationFailed'))
+      } finally {
+        this.isLoading = false
       }
-
-      this.isLoading = false
     },
   },
 })

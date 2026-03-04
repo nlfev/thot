@@ -30,6 +30,7 @@ class UserRegisterRequest(BaseModel):
     username: str = Field(..., min_length=3, max_length=255)
     email: EmailStr
     tos_agreed: bool = Field(..., description="User must agree to Terms of Service")
+    language: str = Field("en", max_length=2)
 
     @field_validator("tos_agreed")
     @classmethod
@@ -48,6 +49,31 @@ class UserCompleteRegistration(BaseModel):
     password_confirm: str = Field(..., min_length=10, max_length=60)
     corporate_number: Optional[str] = Field(None, max_length=255)
     enable_otp: bool = Field(False)
+    current_language: str = Field("en", max_length=2)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_strength(cls, v):
+        """Validate password meets requirements:
+        - 10-60 characters
+        - Contains uppercase and lowercase
+        - Contains digit or special character
+        """
+        if len(v) < 10 or len(v) > 60:
+            raise ValueError("Password must be between 10 and 60 characters")
+        
+        has_upper = any(c.isupper() for c in v)
+        has_lower = any(c.islower() for c in v)
+        has_digit = any(c.isdigit() for c in v)
+        has_special = any(not c.isalnum() for c in v)
+        
+        if not (has_upper and has_lower):
+            raise ValueError("Password must contain both uppercase and lowercase letters")
+        
+        if not (has_digit or has_special):
+            raise ValueError("Password must contain at least one digit or special character")
+        
+        return v
 
     @field_validator("password_confirm")
     @classmethod
@@ -90,6 +116,21 @@ class UserLoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+
+class RegistrationInitiatedResponse(BaseModel):
+    """Response after initiating registration"""
+
+    message: str
+    email: str
+
+
+class RegistrationCompleteResponse(BaseModel):
+    """Response after completing registration"""
+
+    message: str
+    user: UserResponse
+    otp_setup: Optional[dict] = None
 
 
 class UserDetailResponse(UserResponse):

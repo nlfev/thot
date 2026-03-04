@@ -3,6 +3,7 @@
     <div class="card form-card">
       <h2>{{ $t('auth.loginTitle') }}</h2>
       <p v-if="error" class="error">{{ error }}</p>
+      <p v-if="otpRequired" class="info">{{ $t('auth.otpRequired') }}</p>
       <form @submit.prevent="handleLogin">
         <div class="form-group">
           <label for="username">{{ $t('common.username') }}</label>
@@ -13,8 +14,20 @@
           <input v-model="form.password" type="password" id="password" required />
         </div>
         <div class="form-group">
-          <label for="otp">{{ $t('auth.otpCode') }} ({{ $t('common.optional') }})</label>
-          <input v-model="form.otpCode" type="text" id="otp" />
+          <label for="otp">
+            {{ $t('auth.otpCode') }}
+            <span v-if="!otpRequired">({{ $t('common.optional') }})</span>
+            <span v-else class="required">*</span>
+          </label>
+          <input 
+            v-model="form.otpCode" 
+            type="text" 
+            id="otp" 
+            :required="otpRequired"
+            placeholder="123456"
+            maxlength="6"
+          />
+          <small v-if="otpRequired">{{ $t('auth.enterOtpFromApp') }}</small>
         </div>
         <button type="submit" :disabled="isLoading">
           {{ isLoading ? $t('common.loading') : $t('common.login') }}
@@ -49,12 +62,14 @@ export default defineComponent({
       },
       error: '',
       isLoading: false,
+      otpRequired: false,
     }
   },
   methods: {
     async handleLogin() {
       this.isLoading = true
       this.error = ''
+      this.otpRequired = false
 
       const success = await this.authStore.login(
         this.form.username,
@@ -66,6 +81,12 @@ export default defineComponent({
         this.$router.push('/')
       } else {
         this.error = this.authStore.error
+        
+        // Check if OTP is required
+        if (this.error === 'Two-factor authentication required') {
+          this.otpRequired = true
+          this.error = this.$t('auth.pleaseEnterOtp')
+        }
       }
 
       this.isLoading = false

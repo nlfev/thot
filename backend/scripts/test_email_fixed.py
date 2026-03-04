@@ -3,7 +3,7 @@
 Test email configuration and send a test email.
 
 Usage:
-    python scripts/test_email.py [recipient_email]
+    python scripts/test_email_fixed.py [recipient_email]
 
 If no recipient email is provided, sends to SMTP_USER email.
 """
@@ -58,21 +58,19 @@ def test_smtp_connection():
     try:
         print(f"\n⏳ Connecting to {config.SMTP_SERVER}:{config.SMTP_PORT}...")
         
-        if config.SMTP_PORT == 587:
-            # TLS connection
-            server = smtplib.SMTP(config.SMTP_SERVER, config.SMTP_PORT, timeout=10)
-            server.starttls()
-            print("✅ TLS connection established")
-        elif config.SMTP_PORT == 465:
+        if config.SMTP_PORT == 465:
             # SSL connection
             server = smtplib.SMTP_SSL(config.SMTP_SERVER, config.SMTP_PORT, timeout=10)
             print("✅ SSL connection established")
         else:
-            # Regular SMTP
+            # TLS connection (default for 587)
             server = smtplib.SMTP(config.SMTP_SERVER, config.SMTP_PORT, timeout=10)
-            print(f"✅ SMTP connection established on port {config.SMTP_PORT}")
+            print("✅ SMTP connection established")
+            print(f"⏳ Starting TLS...")
+            server.starttls()
+            print("✅ TLS started")
         
-        print(f"\n⏳ Authenticating as {config.SMTP_USER}...")
+        print(f"⏳ Authenticating as {config.SMTP_USER}...")
         server.login(config.SMTP_USER, config.SMTP_PASSWORD)
         print("✅ Authentication successful")
         
@@ -89,7 +87,8 @@ def test_smtp_connection():
         return False
     except Exception as e:
         print(f"\n❌ CONNECTION ERROR: {e}")
-        print("   Check SMTP_SERVER and SMTP_PORT in .env")
+        import traceback
+        print(f"   Traceback:\n{traceback.format_exc()}")
         return False
 
 
@@ -106,41 +105,64 @@ def send_test_email(recipient: str = None):
     print(f"From: {config.SMTP_FROM_EMAIL} ({config.SMTP_FROM_NAME})")
     
     try:
-        subject = "Test Email - Registration Confirmation"
+        subject = "Test Email - NLF Database Registration"
         
-        html_content = f"""
-        <html>
-            <body>
-                <h2>Welcome, Test User!</h2>
-                <p>This is a test email from the NLF Database registration system.</p>
-                <p>If you received this email, the SMTP configuration is working correctly.</p>
-                <p>
-                    <a href="http://localhost:5173/auth/register/confirm/test-token-12345" style="background-color: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                        Test Confirmation Link
-                    </a>
-                </p>
-                <p>This is a test email and can be safely deleted.</p>
-            </body>
-        </html>
+        text_content = f"""
+Hello,
+
+This is a test email from the NLF Database application.
+
+If you received this email, your SMTP configuration is working correctly!
+
+Configuration Details:
+- SMTP Server: {config.SMTP_SERVER}:{config.SMTP_PORT}
+- From: {config.SMTP_FROM_EMAIL}
+- Recipient: {recipient}
+- Environment: {os.getenv('ENVIRONMENT', 'development')}
+
+Test Confirmation Link (example):
+http://localhost:5173/auth/register/confirm/test-token-12345
+
+Best regards,
+NLF Database System
         """
         
-        plain_text = (
-            "Welcome, Test User!\n\n"
-            "This is a test email from the NLF Database registration system.\n"
-            "If you received this email, the SMTP configuration is working correctly.\n\n"
-            "Please visit: http://localhost:5173/auth/register/confirm/test-token-12345\n\n"
-            "This is a test email and can be safely deleted."
-        )
-        
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
+        html_content = f"""
+<html>
+  <body>
+    <h2>NLF Database - Email Configuration Test</h2>
+    <p>Hello,</p>
+    <p>This is a test email from the NLF Database application.</p>
+    <p><strong>If you received this email, your SMTP configuration is working correctly!</strong></p>
+    
+    <h3>Configuration Details:</h3>
+    <ul>
+      <li>SMTP Server: {config.SMTP_SERVER}:{config.SMTP_PORT}</li>
+      <li>From: {config.SMTP_FROM_EMAIL}</li>
+      <li>Recipient: {recipient}</li>
+      <li>Environment: {os.getenv('ENVIRONMENT', 'development')}</li>
+    </ul>
+
+    <h3>Test Confirmation Link:</h3>
+    <p>
+      <a href="http://localhost:5173/auth/register/confirm/test-token-12345" 
+         style="background-color: #4CAF50; color: white; padding: 10px 20px; 
+                 text-decoration: none; border-radius: 5px; display: inline-block;">
+        Test Confirmation Link
+      </a>
+    </p>
+    
+    <p>Best regards,<br/>NLF Database System</p>
+  </body>
+</html>
+        """
         
         message = MIMEMultipart("alternative")
         message["Subject"] = subject
         message["From"] = f"{config.SMTP_FROM_NAME} <{config.SMTP_FROM_EMAIL}>"
         message["To"] = recipient
         
-        part1 = MIMEText(plain_text, "plain")
+        part1 = MIMEText(text_content, "plain")
         message.attach(part1)
         
         part2 = MIMEText(html_content, "html")
@@ -185,83 +207,6 @@ def send_test_email(recipient: str = None):
         print(f"\n❌ ERROR: {type(e).__name__}: {e}")
         import traceback
         print(f"   Traceback:\n{traceback.format_exc()}")
-        return False
-    print("\n" + "=" * 60)
-    print("SENDING TEST EMAIL")
-    print("=" * 60)
-    
-    try:
-        print(f"\n⏳ Sending test email to {recipient}...")
-        
-        # Create message
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "NLF Database - Email Configuration Test"
-        msg["From"] = f"{config.SMTP_FROM_NAME} <{config.SMTP_FROM_EMAIL}>"
-        msg["To"] = recipient
-        
-        # Text version
-        text = f"""
-Hello,
-
-This is a test email from the NLF Database application.
-
-If you received this email, your SMTP configuration is working correctly!
-
-Configuration Details:
-- SMTP Server: {config.SMTP_SERVER}:{config.SMTP_PORT}
-- From: {config.SMTP_FROM_EMAIL}
-- Recipient: {recipient}
-- Environment: {os.getenv('ENVIRONMENT', 'development')}
-
-Best regards,
-NLF Database System
-        """
-        
-        # HTML version
-        html = f"""
-<html>
-  <body>
-    <h2>NLF Database - Email Configuration Test</h2>
-    <p>Hello,</p>
-    <p>This is a test email from the NLF Database application.</p>
-    <p><strong>If you received this email, your SMTP configuration is working correctly!</strong></p>
-    
-    <h3>Configuration Details:</h3>
-    <ul>
-      <li>SMTP Server: {config.SMTP_SERVER}:{config.SMTP_PORT}</li>
-      <li>From: {config.SMTP_FROM_EMAIL}</li>
-      <li>Recipient: {recipient}</li>
-      <li>Environment: {os.getenv('ENVIRONMENT', 'development')}</li>
-    </ul>
-    
-    <p>Best regards,<br/>NLF Database System</p>
-  </body>
-</html>
-        """
-        
-        part1 = MIMEText(text, "plain")
-        part2 = MIMEText(html, "html")
-        msg.attach(part1)
-        msg.attach(part2)
-        
-        # Send email
-        if config.SMTP_PORT == 587:
-            server = smtplib.SMTP(config.SMTP_SERVER, config.SMTP_PORT, timeout=10)
-            server.starttls()
-        elif config.SMTP_PORT == 465:
-            server = smtplib.SMTP_SSL(config.SMTP_SERVER, config.SMTP_PORT, timeout=10)
-        else:
-            server = smtplib.SMTP(config.SMTP_SERVER, config.SMTP_PORT, timeout=10)
-        
-        server.login(config.SMTP_USER, config.SMTP_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        
-        print(f"✅ Test email sent successfully to {recipient}")
-        return True
-        
-    except Exception as e:
-        print(f"❌ ERROR sending email: {e}")
         return False
 
 

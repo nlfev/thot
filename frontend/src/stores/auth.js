@@ -53,20 +53,21 @@ export const useAuthStore = defineStore('auth', {
       delete api.defaults.headers.common['Authorization']
     },
 
-    async register(username, email, tosAgreed) {
+    async register(username, email, tosAgreed, language = 'en') {
       this.isLoading = true
       this.error = null
 
       try {
-        await api.post('/auth/register', {
+        const response = await api.post('/auth/register', {
           username,
           email,
           tos_agreed: tosAgreed,
+          language: language,
         })
-        return true
+        return response.data
       } catch (error) {
         this.error = error.response?.data?.detail || 'Registration failed'
-        return false
+        throw error.response?.data || error
       } finally {
         this.isLoading = false
       }
