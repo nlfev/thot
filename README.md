@@ -38,7 +38,7 @@ Professional Database Management System with Vue.js Frontend and FastAPI Backend
 - Python 3.9+
 - Node.js 16+
 - PostgreSQL 12+
-- **Poppler** (required for PDF thumbnail generation)
+- **PyMuPDF runtime support** (installed via `requirements.txt`)
 - Visual Studio Code
 
 ## Quick Start
@@ -83,6 +83,44 @@ Frontend runs at: `http://localhost:3000`
 - [Installation & Setup Guide](install.md)
 - [API Documentation](http://localhost:8000/docs) (Swagger UI)
 - [API ReDoc](http://localhost:8000/redoc)
+
+## API Quick Guide (Swagger)
+
+### 1. Open API Docs
+- Start backend and open: `http://localhost:8000/docs`
+- Base API prefix is: `/api/v1`
+
+### 2. Login (Get JWT Token)
+- Open endpoint: `POST /api/v1/auth/login`
+- Click `Try it out`
+- Enter JSON body:
+
+```json
+{
+  "username": "your_username",
+  "password": "your_password",
+  "otp_code": "123456"
+}
+```
+
+Notes:
+- `otp_code` is optional. Use it only if OTP is enabled for the user.
+- On success, response contains `access_token` and `token_type`.
+
+### 3. Authenticate in Swagger
+- Click `Authorize` (top-right).
+- Paste the token from `access_token` into the bearer auth field.
+- If needed, use format: `Bearer <access_token>`.
+- Click `Authorize`, then `Close`.
+
+### 4. Call Protected Endpoints
+- Example: `GET /api/v1/users/profile`
+- Click `Try it out` -> `Execute`
+- If authentication is correct, you get the user profile response.
+
+### 5. Typical Auth Errors
+- `401 Unauthorized`: token missing/invalid/expired.
+- `403 Forbidden`: account inactive or OTP required but not provided.
 
 ## Project Structure
 
