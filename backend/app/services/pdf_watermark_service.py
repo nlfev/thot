@@ -9,7 +9,7 @@ from pypdf import PdfReader, PdfWriter
 from reportlab.lib.colors import Color
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
-from pdf2image import convert_from_path
+import fitz  # PyMuPDF
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -140,145 +140,118 @@ def create_thumbnail_with_watermark(
     watermark_image_path: Optional[Path] = None,
     thumbnail_width: int = 200,
 ) -> bytes:
-    """Generate a thumbnail of the first page with watermark overlay."""
+    """Generate a thumbnail of the first page with watermark overlay using PyMuPDF."""
     try:
-        # Convert first page to image with 150 DPI for good quality
-        images = convert_from_path(
-            str(source_pdf),
-            first_page=1,
-            last_page=1,
-            dpi=150,
-        )
+        # Open PDF with fitz
+        pdf_doc = fitz.open(str(source_pdf))
         
-        if not images:
-            raise ValueError("Could not convert PDF to image")
+        if len(pdf_doc) == 0:
+            raise ValueError("PDF has no pages")
         
         # Get first page
-        pdf_image = images[0]
+        page = pdf_doc[0]
         
-        # Calculate thumbnail size maintaining aspect ratio
-        aspect_ratio = pdf_image.height / pdf_image.width
-        thumbnail_height = int(thumbnail_width * aspect_ratio)
+        # Calculate zoom level based on desired width
+        # Standard A4 width is ~595 points
+        zoom = thumbnail_width / 595.0
         
-        # Resize image
-        thumbnail = pdf_image.resize(
-            (thumbnail_width, thumbnail_height),
-            Image.Resampling.LANCZOS
-        )
+        # Render page to image at specified zoom
+        pix = page.get_pixmap(matrix=fitz.Matrix(zoom * 1.5, zoom * 1.5), alpha=False)
+        
+        # Convert to PIL Image
+        img_data = pix.tobytes("ppm")
+        pdf_image = Image.open(BytesIO(img_data))
+        pdf_image = pdf_image.convert("RGB")
         
         # Create watermark overlay
-        overlay = Image.new("RGBA", thumbnail.size, (255, 255, 255, 0))
+        overlay = Image.new("RGBA", pdf_image.size, (255, 255, 255, 0))
         draw = ImageDraw.Draw(overlay)
         
-        # Scale factors for positioning
-        scale_x = thumbnail_width / 595.0  # A4 width in points
-        scale_y = thumbnail_height / 842.0  # A4 height in points
+        # Scale factors for text positioning
+        actual_width = pdf_image.width
+        actual_height = pdf_image.height
+        scale_x = actual_width / 595.0
+        scale_y = actual_height / 842.0
         
         # Diagonal "CONFIDENTIAL" label
-        font_size = max(12, int(min(thumbnail_width, thumbnail_height) * 0.08))
+        font_size = max(10, int(min(actual_width, actual_height) * 0.06))
         try:
-            # Try to use a bold font
             font_bold = ImageFont.truetype("arialbd.ttf", font_size)
-            font_regular = ImageFont.truetype("arial.ttf", max(7, int(font_size * 0.5)))
-            font_small = ImageFont.truetype("arial.ttf", max(6, int(font_size * 0.4)))
+            font_regular = ImageFont.truetype("arial.ttf", max(6, int(font_size * 0.5)))
+            font_small = ImageFont.truetype("arial.ttf", max(5, int(font_size * 0.4)))
         except:
-            # Fallback to default font
             font_bold = ImageFont.load_default()
             font_regular = ImageFont.load_default()
             font_small = ImageFont.load_default()
         
         # Draw diagonal CONFIDENTIAL
-        center_x = thumbnail_width // 2
-        center_y = thumbnail_height // 2
+        center_x = actual_width // 2
+        center_y = actual_height // 2
         
-        # Create a temporary image for rotation
         diagonal_text = "CONFIDENTIAL"
         text_bbox = draw.textbbox((0, 0), diagonal_text, font=font_bold)
         text_width = text_bbox[2] - text_bbox[0]
         text_height = text_bbox[3] - text_bbox[1]
         
-        # Create text image
-        text_image = Image.new("RGBA", (text_width + 20, text_height + 20), (255, 255, 255, 0))
+        # Create text image for rotation
+        text_image = Image.new("RGBA", (text_width + 10, text_height + 10), (255, 255, 255, 0))
         text_draw = ImageDraw.Draw(text_image)
-        text_draw.text(
-            (10, 10),
-            diagonal_text,
-            fill=(217, 13, 13, 36),  # Red with transparency
-            font=font_bold
-        )
+        text_draw.text((5, 5), diagonal_text, fill=(217, 13, 13, 40), font=font_bold)
         
         # Rotate text
         rotated_text = text_image.rotate(38, expand=True)
-        
-        # Paste rotated text at center
         paste_x = center_x - rotated_text.width // 2
         paste_y = center_y - rotated_text.height // 2
         overlay.paste(rotated_text, (paste_x, paste_y), rotated_text)
         
         # Header badge area
-        left_x = int(36 * scale_x)
-        top_y = int(36 * scale_y)
+        left_x = int(20 * scale_x)
+        top_y = int(20 * scale_y)
         
-        # Optional watermark image
-        if watermark_image_path and watermark_image_path.exists() and watermark_image_path.is_file():
+        # Optional logo
+        if watermark_image_path and watermark_image_path.exists():
             try:
                 logo = Image.open(watermark_image_path)
-                logo_height = int(40 * scale_y)
-                logo_width = int(logo.width * (logo_height / logo.height))
+                logo_height = int(25 * scale_y)
+                logo_width = int(logo.width * (logo_height / max(logo.height, 1)))
                 logo = logo.resize((logo_width, logo_height), Image.Resampling.LANCZOS)
                 
-                # Convert to RGBA if needed
                 if logo.mode != "RGBA":
                     logo = logo.convert("RGBA")
                 
                 overlay.paste(logo, (left_x, top_y), logo)
-                text_start_x = left_x + logo_width + int(10 * scale_x)
+                text_start_x = left_x + logo_width + int(8 * scale_x)
             except:
                 text_start_x = left_x
         else:
             text_start_x = left_x
         
-        # Draw header text
+        # Draw metadata text
         y_pos = top_y
         draw.text((text_start_x, y_pos), "CONFIDENTIAL", fill=(26, 26, 26, 230), font=font_regular)
         
-        y_pos += int(12 * scale_y)
-        username_short = _fit_text(username, 25)
-        draw.text((text_start_x, y_pos), f"Downloaded by: {username_short}", fill=(26, 26, 26, 230), font=font_small)
-        
         y_pos += int(10 * scale_y)
-        draw.text((text_start_x, y_pos), downloaded_at.strftime("%Y-%m-%d %H:%M"), fill=(26, 26, 26, 230), font=font_small)
+        username_short = _fit_text(username, 20)
+        draw.text((text_start_x, y_pos), f"By: {username_short}", fill=(26, 26, 26, 200), font=font_small)
         
-        # Record info (right-aligned)
-        right_x = thumbnail_width - int(36 * scale_x)
-        info_y = top_y + int(38 * scale_y)
+        y_pos += int(8 * scale_y)
+        draw.text((text_start_x, y_pos), downloaded_at.strftime("%Y-%m-%d %H:%M"), fill=(26, 26, 26, 200), font=font_small)
         
-        info_lines = [
-            f"Record: {_fit_text(record_name, 20)}",
-            f"Sign: {_fit_text(record_signature, 15)}",
-            f"Page: {_fit_text(page_text, 15)}",
-        ]
+        # Composite watermark onto image
+        if pdf_image.mode != "RGBA":
+            pdf_image = pdf_image.convert("RGBA")
         
-        for line in info_lines:
-            bbox = draw.textbbox((0, 0), line, font=font_small)
-            line_width = bbox[2] - bbox[0]
-            draw.text((right_x - line_width, info_y), line, fill=(26, 26, 26, 230), font=font_small)
-            info_y += int(9 * scale_y)
+        watermarked = Image.alpha_composite(pdf_image, overlay)
         
-        # Composite thumbnail with watermark
-        if thumbnail.mode != "RGBA":
-            thumbnail = thumbnail.convert("RGBA")
-        
-        watermarked = Image.alpha_composite(thumbnail, overlay)
-        
-        # Convert to RGB for JPEG output
+        # Convert to RGB for JPEG
         watermarked_rgb = watermarked.convert("RGB")
         
-        # Save to bytes
+        # Save to JPEG
         output = BytesIO()
-        watermarked_rgb.save(output, format="JPEG", quality=85, optimize=True)
+        watermarked_rgb.save(output, format="JPEG", quality=80, optimize=True)
         output.seek(0)
         
+        pdf_doc.close()
         return output.read()
         
     except Exception as e:

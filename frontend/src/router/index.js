@@ -91,6 +91,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/records/:recordId/pages-gallery',
+    name: 'RecordPagesGallery',
+    component: () => import('@/views/records/RecordPagesGallery.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/records/:recordId/pages/new',
     name: 'PageCreate',
     component: () => import('@/views/records/PageForm.vue'),

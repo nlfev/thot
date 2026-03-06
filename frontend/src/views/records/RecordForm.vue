@@ -3,6 +3,9 @@
     <div class="form-header">
       <h1>{{ isEditMode ? $t('records.editRecord') : $t('records.createRecord') }}</h1>
       <div class="header-actions">
+        <router-link v-if="isEditMode" :to="`/records/${recordId}/pages-gallery`" class="btn btn-primary">
+          {{ $t('pages.galleryTitle') }}
+        </router-link>
         <router-link v-if="isEditMode" :to="`/records/${recordId}/pages`" class="btn btn-info">
           {{ $t('pages.managePages') }}
         </router-link>

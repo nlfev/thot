@@ -8,6 +8,9 @@
         <h1>{{ $t('pages.pageListTitle') }}: {{ recordTitle }}</h1>
       </div>
       <div class="header-actions">
+        <router-link :to="`/records/${recordId}/pages-gallery`" class="btn btn-info">
+          {{ $t('pages.galleryTitle') }}
+        </router-link>
         <router-link :to="`/records/${recordId}/pages/new`" class="btn btn-primary">
           {{ $t('pages.createNew') }}
         </router-link>
