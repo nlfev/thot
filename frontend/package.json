@@ -2,6 +2,7 @@
   "name": "nlf-database-frontend",
   "version": "1.0.0",
   "description": "Vue.js frontend for NLF Database Management",
+  "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {
     "dev": "vite",

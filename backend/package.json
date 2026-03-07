@@ -17,5 +17,5 @@
   },
   "keywords": ["fastapi", "postgresql", "sqlalchemy", "rest-api", "python"],
   "author": "Your Company",
-  "license": "MIT"
+  "license": "AGPL-3.0-or-later"
 }

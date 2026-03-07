@@ -1260,6 +1260,43 @@ Expected performance (depends on PDF size/complexity):
 
 ---
 
+## AGPL Compliance Checklist
+
+Project license: **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)**.
+
+Use this checklist before releases and production deployments:
+
+1. Keep project license metadata consistent
+  - Root `LICENSE` file must stay AGPL.
+  - `backend/package.json` and `frontend/package.json` must use `"license": "AGPL-3.0-or-later"`.
+2. Keep user-facing AGPL notice visible
+  - About page (`frontend/src/views/About.vue`) must show AGPL notice and link to `/LICENSE`.
+  - Third-party licenses link must point to `/THIRD_PARTY_LICENSES.md`.
+3. Provide source code access for network use
+  - Configure public repository URL in frontend env when available:
+  ```env
+  VITE_SOURCE_REPO_URL=https://<your-git-host>/<org>/<repo>
+  ```
+  - If repository is not yet published, About page must still show a clear placeholder message.
+4. Keep third-party licensing up to date
+  - Maintain `THIRD_PARTY_LICENSES.md` whenever dependencies change.
+  - Include both runtime and relevant build/test dependencies.
+5. Distribution/deployment sanity check
+  - Ensure deployed frontend can serve `/LICENSE` and `/THIRD_PARTY_LICENSES.md`.
+  - Ensure AGPL notice is reachable from app navigation (About page).
+
+Quick verification command examples:
+
+```bash
+# Check license metadata in package files
+rg '"license"\s*:\s*"AGPL-3.0-or-later"' backend/package.json frontend/package.json
+
+# Check AGPL and source-code references in About texts
+rg "AGPL|LICENSE|THIRD_PARTY_LICENSES|source code|repository" frontend/src/views/About.vue frontend/src/locales/messages.js
+```
+
+---
+
 ## Useful Resources
 
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
@@ -1277,7 +1314,7 @@ Expected performance (depends on PDF size/complexity):
 2. Review the [README.md](README.md) for project overview
 3. Look at existing tests for usage examples
 4. Check Alembic history: `alembic history`
-5. Ask senior developers or create GitHub issues
+5. Ask senior developers or create issues in the project Git repository
 
 ---
 

@@ -318,14 +318,14 @@ npm run lint
 
 ## License
 
-MIT License - See LICENSE file for details
+GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later) - See `LICENSE` for details.
 
 ## Support
 
 For issues or questions:
 1. Check the [Installation Guide](install.md)
 2. Review API Documentation
-3. Create a GitHub Issue
+3. Create an issue in the project Git repository (to be published)
 
 ## Author
 
