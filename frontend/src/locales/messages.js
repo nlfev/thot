@@ -136,6 +136,7 @@ export const messages = {
       otpRequired: 'Two-factor authentication is required for your account',
       pleaseEnterOtp: 'Please enter your two-factor authentication code',
       enterOtpFromApp: 'Enter the 6-digit code from your authenticator app',
+      sessionTimedOut: 'Your session ended due to 60 minutes of inactivity. Please log in again.',
     },
 
     // User Management
@@ -477,6 +478,7 @@ export const messages = {
       otpRequired: 'Zwei-Faktor-Authentifizierung ist für Ihr Konto erforderlich',
       pleaseEnterOtp: 'Bitte geben Sie Ihren Zwei-Faktor-Authentifizierungscode ein',
       enterOtpFromApp: 'Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein',
+      sessionTimedOut: 'Ihre Sitzung wurde nach 60 Minuten Inaktivität beendet. Bitte melden Sie sich erneut an.',
     },
 
     // User Management

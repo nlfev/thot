@@ -32,6 +32,8 @@ export default defineComponent({
     }
   },
   async mounted() {
+    await this.appStore.initializeConfig()
+
     // Load user data if token exists
     await this.authStore.fetchUser()
   },

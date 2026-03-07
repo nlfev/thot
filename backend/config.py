@@ -27,9 +27,14 @@ class Config:
 
     # Security
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
-    ACCESS_TOKEN_EXPIRE_MINUTES = 60
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 60))
     REFRESH_TOKEN_EXPIRE_DAYS = 7
-    TOKEN_REFRESH_INTERVAL_MINUTES = int(os.getenv("TOKEN_REFRESH_INTERVAL_MINUTES", 55))
+    TOKEN_REFRESH_INTERVAL_MINUTES = int(
+        os.getenv(
+            "TOKEN_REFRESH_INTERVAL_MINUTES",
+            max(1, ACCESS_TOKEN_EXPIRE_MINUTES - 5),
+        )
+    )
     SESSION_TIMEOUT_MINUTES = int(os.getenv("SESSION_TIMEOUT_MINUTES", 60))
 
     # Database

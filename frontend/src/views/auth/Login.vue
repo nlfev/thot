@@ -2,6 +2,7 @@
   <div class="auth-container">
     <div class="card form-card">
       <h2>{{ $t('auth.loginTitle') }}</h2>
+      <p v-if="sessionNotice" class="info">{{ sessionNotice }}</p>
       <p v-if="error" class="error">{{ error }}</p>
       <p v-if="otpRequired" class="info">{{ $t('auth.otpRequired') }}</p>
       <form @submit.prevent="handleLogin">
@@ -61,14 +62,21 @@ export default defineComponent({
         otpCode: '',
       },
       error: '',
+      sessionNotice: '',
       isLoading: false,
       otpRequired: false,
+    }
+  },
+  mounted() {
+    if (this.$route.query.reason === 'session-timeout') {
+      this.sessionNotice = this.$t('auth.sessionTimedOut')
     }
   },
   methods: {
     async handleLogin() {
       this.isLoading = true
       this.error = ''
+      this.sessionNotice = ''
       this.otpRequired = false
 
       const success = await this.authStore.login(

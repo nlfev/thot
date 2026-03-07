@@ -24,6 +24,7 @@ from app.schemas import (
 from app.services import UserService, RegistrationService, PasswordResetService
 from app.utils import (
     create_access_token,
+    get_current_user,
     verify_otp,
 )
 from app.utils.email_service import email_service
@@ -234,6 +235,18 @@ async def login(
         token_type="bearer",
         user=user_response,
     )
+
+
+@router.post("/refresh")
+async def refresh_access_token(current_user: User = Depends(get_current_user)):
+    """
+    Refresh the access token for an authenticated active user.
+    """
+    access_token = create_access_token(str(current_user.id))
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+    }
 
 
 @router.post("/password-reset")
