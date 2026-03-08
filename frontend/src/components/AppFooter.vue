@@ -3,10 +3,10 @@
     <div class="footer-content">
       <div class="footer-left">
         <span v-if="authStore.isAuthenticated">
-          {{ authStore.currentUser?.username }} ({{ authStore.currentUser?.roles?.join(', ') }})
+          {{ $t('common.user') }}: {{ authStore.currentUser?.username }} ({{ authStore.currentUser?.roles?.join(', ') }})
         </span>
         <span v-else>
-          {{ $t('common.login') }}
+          {{ $t('common.user') }}: {{ $t('common.notLoggedIn') }}
         </span>
       </div>
       <div class="footer-right">
