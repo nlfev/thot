@@ -94,6 +94,7 @@
             <th>{{ $t('admin.corporateNumber') }}</th>
             <th>{{ $t('admin.corporateApproved') }}</th>
             <th>{{ $t('common.active') }}</th>
+            <th>{{ $t('admin.userRoles') }}</th>
             <th>{{ $t('common.actions') }}</th>
           </tr>
         </thead>
@@ -122,6 +123,14 @@
                   @change="handleActiveChange(user.id, user.username, $event)"
                   class="form-checkbox"
                 />
+              </div>
+            </td>
+            <td>
+              <div class="roles-cell">
+                <span v-if="!userRoles[user.id] || userRoles[user.id].length === 0" class="text-muted">-</span>
+                <span v-for="role in userRoles[user.id]" :key="role.user_role_id" class="badge badge-role">
+                  {{ role.role_name }}
+                </span>
               </div>
             </td>
             <td class="actions-cell">
@@ -203,6 +212,12 @@
             <label>{{ $t('common.createdOn') }}</label>
             <div>{{ formatDate(selectedUserDetails.created_on) }}</div>
           </div>
+
+          <UserRoleManagement
+            :user-id="selectedUserDetails.id"
+            :can-manage-roles="canManageRoles"
+            @roles-updated="handleRolesUpdated"
+          />
         </div>
       </div>
     </div>
@@ -213,9 +228,13 @@
 import { defineComponent } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { userService } from '@/services/user'
+import UserRoleManagement from '@/components/UserRoleManagement.vue'
 
 export default defineComponent({
   name: 'UserManagement',
+  components: {
+    UserRoleManagement,
+  },
   setup() {
     const authStore = useAuthStore()
 
@@ -242,11 +261,15 @@ export default defineComponent({
       },
       showDetailsModal: false,
       selectedUserDetails: null,
+      userRoles: {},
     }
   },
   computed: {
     totalPages() {
       return Math.ceil(this.totalUsers / this.pageSize)
+    },
+    canManageRoles() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('support')
     },
   },
   mounted() {
@@ -268,6 +291,9 @@ export default defineComponent({
         this.users = response.items || []
         this.totalUsers = response.total || 0
         
+        // Load roles for each user
+        await this.loadUserRoles()
+        
         // Load statistics
         await this.loadStatistics()
       } catch (err) {
@@ -285,6 +311,27 @@ export default defineComponent({
       } catch (err) {
         console.error('Error loading user statistics:', err)
         // Don't show error to user, statistics are optional
+      }
+    },
+
+    async loadUserRoles() {
+      try {
+        // Load roles for all visible users
+        const rolePromises = this.users.map(async (user) => {
+          try {
+            const roles = await userService.getUserRoles(user.id, false)
+            // Ensure we have an array
+            const rolesArray = Array.isArray(roles) ? roles : (roles.items || [])
+            this.userRoles[user.id] = rolesArray
+          } catch (err) {
+            console.error(`Error loading roles for user ${user.id}:`, err)
+            this.userRoles[user.id] = []
+          }
+        })
+        
+        await Promise.all(rolePromises)
+      } catch (err) {
+        console.error('Error loading user roles:', err)
       }
     },
 
@@ -342,6 +389,14 @@ export default defineComponent({
     closeDetailsModal() {
       this.showDetailsModal = false
       this.selectedUserDetails = null
+    },
+
+    async handleRolesUpdated() {
+      if (!this.selectedUserDetails?.id) {
+        return
+      }
+
+      await this.viewUserDetails(this.selectedUserDetails.id)
     },
 
     async startPasswordReset(userId, username) {
@@ -587,6 +642,7 @@ export default defineComponent({
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
+  margin-right: 4px;
 }
 
 .badge-success {
@@ -597,6 +653,23 @@ export default defineComponent({
 .badge-danger {
   background-color: #f8d7da;
   color: #721c24;
+}
+
+.badge-role {
+  background-color: #e7f3ff;
+  color: #004085;
+  border: 1px solid #b3d9ff;
+}
+
+.roles-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.text-muted {
+  color: #999;
+  font-style: italic;
 }
 
 .actions-cell {

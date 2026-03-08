@@ -2,6 +2,7 @@
 User routes for profile and user management
 """
 
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
@@ -16,6 +17,8 @@ from app.schemas import (
     UserListResponse,
     UserDetailSupportResponse,
     UserUpdateSupportRequest,
+    UserRoleAssignRequest,
+    UserRoleResponse,
 )
 from app.services import UserService
 from app.services.password_reset_service import PasswordResetService
@@ -336,4 +339,118 @@ async def support_reset_user_password(
     return {
         "message": "Password reset email has been sent",
         "expires_in_hours": config.PASSWORD_RESET_TOKEN_EXPIRE_HOURS,
+    }
+
+
+# ========================
+# User Role Management
+# ========================
+
+@router.get("/{user_id}/roles", response_model=List[UserRoleResponse])
+async def get_user_roles(
+    user_id: str,
+    include_inactive: bool = False,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Get all roles assigned to a user (support/admin only)
+    """
+    if not (current_user.has_role("support") or current_user.has_role("admin")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    # Verify user exists
+    user = UserService.get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+
+    roles = UserService.get_user_roles(db, user_id, include_inactive=include_inactive)
+    
+    return [UserRoleResponse(**role) for role in roles]
+
+
+@router.post("/{user_id}/roles", response_model=UserRoleResponse, status_code=status.HTTP_201_CREATED)
+async def assign_role_to_user(
+    user_id: str,
+    request: UserRoleAssignRequest,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Assign a role to a user (support/admin only)
+    Creates a new active role assignment
+    """
+    if not (current_user.has_role("support") or current_user.has_role("admin")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    user_role, error = UserService.assign_role_to_user(
+        db=db,
+        user_id=user_id,
+        role_id=str(request.role_id),
+        assigned_by=str(current_user.id),
+    )
+
+    if error or not user_role:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error or "Failed to assign role"
+        )
+
+    # Get full role information for response
+    roles = UserService.get_user_roles(db, user_id, include_inactive=False)
+    assigned_role = next((r for r in roles if str(r["user_role_id"]) == str(user_role.id)), None)
+    
+    if not assigned_role:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Role assigned but could not retrieve details"
+        )
+
+    return UserRoleResponse(**assigned_role)
+
+
+@router.delete("/{user_id}/roles/{role_id}", status_code=status.HTTP_200_OK)
+async def remove_role_from_user(
+    user_id: str,
+    role_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Remove a role from a user (support/admin only)
+    Soft deletes the role assignment (sets active=False)
+    Deleted role assignments cannot be reactivated
+    """
+    if not (current_user.has_role("support") or current_user.has_role("admin")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+    success, error = UserService.remove_role_from_user(
+        db=db,
+        user_id=user_id,
+        role_id=role_id,
+        removed_by=str(current_user.id),
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error or "Failed to remove role"
+        )
+
+    return {
+        "message": "Role removed successfully",
+        "user_id": user_id,
+        "role_id": role_id,
     }

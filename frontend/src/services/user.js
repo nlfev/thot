@@ -164,6 +164,49 @@ export const userService = {
       throw error.response?.data || error
     }
   },
+
+  /**
+   * Get user roles (admin/support)
+   */
+  async getUserRoles(userId, includeInactive = false) {
+    try {
+      const response = await api.get(`/users/${userId}/roles`, {
+        params: {
+          include_inactive: includeInactive,
+        },
+      })
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Assign role to user (admin/support)
+   */
+  async assignRoleToUser(userId, roleId) {
+    try {
+      const response = await api.post(`/users/${userId}/roles`, {
+        role_id: roleId,
+      })
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Remove role from user (admin/support)
+   * Soft delete - cannot be reactivated
+   */
+  async removeRoleFromUser(userId, roleId) {
+    try {
+      const response = await api.delete(`/users/${userId}/roles/${roleId}`)
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
 }
 
 export default userService

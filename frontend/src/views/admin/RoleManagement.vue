@@ -194,13 +194,13 @@ export default defineComponent({
             description: this.form.description,
             active: this.form.active,
           })
-          this.successMessage = this.$t('admin.roleUpdateSuccess')
+          this.successMessage = this.$t('admin.roleUpdateSuccess', { roleName: this.form.name })
         } else {
           await roleService.createRole({
             name: this.form.name,
             description: this.form.description,
           })
-          this.successMessage = this.$t('admin.roleCreateSuccess')
+          this.successMessage = this.$t('admin.roleCreateSuccess', { roleName: this.form.name })
         }
 
         this.cancelEdit()
@@ -227,7 +227,7 @@ export default defineComponent({
 
       try {
         await roleService.deleteRole(role.id)
-        this.successMessage = this.$t('admin.roleDeleteSuccess')
+        this.successMessage = this.$t('admin.roleDeleteSuccess', { roleName: role.name })
         await this.loadRoles()
       } catch (err) {
         this.error = err.detail || this.$t('admin.roleDeleteError')

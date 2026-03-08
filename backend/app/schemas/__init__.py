@@ -222,6 +222,26 @@ class RoleResponse(RoleBase):
         from_attributes = True
 
 
+class UserRoleAssignRequest(BaseModel):
+    """Request to assign a role to a user"""
+
+    role_id: UUID = Field(..., description="ID of the role to assign")
+
+
+class UserRoleResponse(BaseModel):
+    """User role assignment response"""
+
+    user_role_id: UUID
+    role_id: UUID
+    role_name: str
+    role_description: Optional[str]
+    assigned_on: datetime
+    assigned_by: Optional[UUID]
+    active: bool
+    removed_on: Optional[datetime] = None
+    removed_by: Optional[UUID] = None
+
+
 # ========================
 # Permission Schemas
 # ========================
@@ -396,6 +416,8 @@ __all__ = [
     "OTPEnableRequest",
     "RoleBase",
     "RoleResponse",
+    "UserRoleAssignRequest",
+    "UserRoleResponse",
     "PermissionBase",
     "PermissionResponse",
     "UserListResponse",

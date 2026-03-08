@@ -49,12 +49,16 @@ class User(BaseModel):
 
     def has_role(self, role_name: str) -> bool:
         """Check if user has a specific role"""
-        return any(ur.role.name == role_name for ur in self.user_roles if ur.role.active)
+        return any(
+            ur.role.name == role_name
+            for ur in self.user_roles
+            if ur.active and ur.role.active
+        )
 
     def has_permission(self, permission_name: str) -> bool:
         """Check if user has a specific permission through their roles"""
         for user_role in self.user_roles:
-            if not user_role.role.active:
+            if not user_role.active or not user_role.role.active:
                 continue
             for role_perm in user_role.role.role_permissions:
                 if role_perm.permission.name == permission_name and role_perm.permission.active:
@@ -63,13 +67,13 @@ class User(BaseModel):
 
     def get_roles(self) -> list[str]:
         """Get list of role names for the user"""
-        return [ur.role.name for ur in self.user_roles if ur.role.active]
+        return [ur.role.name for ur in self.user_roles if ur.active and ur.role.active]
 
     def get_permissions(self) -> list[str]:
         """Get list of all permissions for the user"""
         permissions = set()
         for user_role in self.user_roles:
-            if not user_role.role.active:
+            if not user_role.active or not user_role.role.active:
                 continue
             for role_perm in user_role.role.role_permissions:
                 if role_perm.permission.active:

@@ -5,7 +5,7 @@ Tests for User Service
 import pytest
 from datetime import datetime
 from app.services import UserService
-from app.models import User, Role
+from app.models import User, Role, UserRole
 from app.utils import verify_password, hash_password
 import uuid
 
@@ -193,3 +193,69 @@ def test_change_password(db, setup_roles):
         password="NewPassword456!"
     )
     assert user_updated is not None
+
+
+def test_inactive_user_role_not_effective(db, setup_roles):
+    """Inactive user_roles must not grant role checks or role listing"""
+    user = UserService.create_user(
+        db=db,
+        username="rolecheck",
+        email="rolecheck@example.com",
+        password="TestPassword123!",
+        is_first_user=False,
+    )
+
+    admin_role = setup_roles["admin"]
+    assignment = UserRole(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        role_id=admin_role.id,
+        active=False,
+        created_on=datetime.utcnow(),
+    )
+    db.add(assignment)
+    db.commit()
+    db.refresh(user)
+
+    assert user.has_role("admin") is False
+    assert "admin" not in user.get_roles()
+
+
+def test_removed_role_cannot_be_reassigned(db, setup_roles):
+    """Soft-deleted role assignments cannot be reactivated via new assignment"""
+    user = UserService.create_user(
+        db=db,
+        username="softdelete",
+        email="softdelete@example.com",
+        password="TestPassword123!",
+        is_first_user=False,
+    )
+    admin_role = setup_roles["admin"]
+    actor_id = str(user.id)
+
+    assigned, err = UserService.assign_role_to_user(
+        db=db,
+        user_id=str(user.id),
+        role_id=str(admin_role.id),
+        assigned_by=actor_id,
+    )
+    assert assigned is not None
+    assert err is None
+
+    removed, err = UserService.remove_role_from_user(
+        db=db,
+        user_id=str(user.id),
+        role_id=str(admin_role.id),
+        removed_by=actor_id,
+    )
+    assert removed is True
+    assert err is None
+
+    reassigned, err = UserService.assign_role_to_user(
+        db=db,
+        user_id=str(user.id),
+        role_id=str(admin_role.id),
+        assigned_by=actor_id,
+    )
+    assert reassigned is None
+    assert err == "Role assignment was previously removed and cannot be reactivated"

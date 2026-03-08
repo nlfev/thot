@@ -86,6 +86,12 @@ class UserService:
     @staticmethod
     def get_user_by_id(db: Session, user_id: str) -> Optional[User]:
         """Get user by ID"""
+        try:
+            # Convert string to UUID if needed
+            if isinstance(user_id, str):
+                user_id = uuid.UUID(user_id)
+        except (ValueError, AttributeError):
+            return None
         return db.query(User).filter(User.id == user_id).first()
 
     @staticmethod
@@ -155,7 +161,10 @@ class UserService:
             user.current_language = current_language
 
         user.last_modified_on = datetime.utcnow()
-        user.last_modified_by = user_id
+        try:
+            user.last_modified_by = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+        except (ValueError, AttributeError):
+            user.last_modified_by = None
 
         db.commit()
         db.refresh(user)
@@ -179,7 +188,10 @@ class UserService:
 
         user.hashed_password = hash_password(new_password)
         user.last_modified_on = datetime.utcnow()
-        user.last_modified_by = user_id
+        try:
+            user.last_modified_by = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+        except (ValueError, AttributeError):
+            user.last_modified_by = None
         db.commit()
         return True, "Password changed successfully"
 
@@ -197,8 +209,12 @@ class UserService:
         user.hashed_password = hash_password(new_password)
         user.unsuccessful_logins = 0
         user.last_modified_on = datetime.utcnow()
-        user.last_modified_by = user_id
+        try:
+            user.last_modified_by = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+        except (ValueError, AttributeError):
+            user.last_modified_by = None
         db.commit()
+        return True, "Password reset successfully"
         return True, "Password reset successfully"
 
     @staticmethod
@@ -215,7 +231,10 @@ class UserService:
 
         user.email = new_email
         user.last_modified_on = datetime.utcnow()
-        user.last_modified_by = user_id
+        try:
+            user.last_modified_by = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+        except (ValueError, AttributeError):
+            user.last_modified_by = None
         db.commit()
         return True, "Email updated successfully"
 
@@ -230,7 +249,10 @@ class UserService:
         user.otp_secret = secret
         user.otp_enabled = True
         user.last_modified_on = datetime.utcnow()
-        user.last_modified_by = user_id
+        try:
+            user.last_modified_by = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+        except (ValueError, AttributeError):
+            user.last_modified_by = None
         db.commit()
         return secret
 
@@ -244,7 +266,10 @@ class UserService:
         user.otp_secret = None
         user.otp_enabled = False
         user.last_modified_on = datetime.utcnow()
-        user.last_modified_by = user_id
+        try:
+            user.last_modified_by = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+        except (ValueError, AttributeError):
+            user.last_modified_by = None
         db.commit()
         return True
 
@@ -290,7 +315,171 @@ class UserService:
             user.active = active
 
         user.last_modified_on = datetime.utcnow()
-        user.last_modified_by = admin_id
+        try:
+            user.last_modified_by = uuid.UUID(admin_id) if isinstance(admin_id, str) else admin_id
+        except (ValueError, AttributeError):
+            user.last_modified_by = None
         db.commit()
         db.refresh(user)
         return user
+
+    @staticmethod
+    def get_user_roles(db: Session, user_id: str, include_inactive: bool = False) -> List[dict]:
+        """
+        Get all roles assigned to a user
+        Args:
+            user_id: User ID
+            include_inactive: Whether to include inactive (deleted) role assignments
+        Returns:
+            List of dicts with role info and assignment metadata
+        """
+        try:
+            user_id_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+        except (ValueError, AttributeError):
+            return []
+        
+        query = db.query(UserRole).filter(UserRole.user_id == user_id_uuid)
+        
+        if not include_inactive:
+            query = query.filter(UserRole.active == True)
+        
+        user_roles = query.all()
+        
+        result = []
+        for ur in user_roles:
+            result.append({
+                "user_role_id": ur.id,
+                "role_id": ur.role.id,
+                "role_name": ur.role.name,
+                "role_description": ur.role.description,
+                "assigned_on": ur.created_on,
+                "assigned_by": ur.created_by,
+                "active": ur.active,
+                "removed_on": ur.last_modified_on if not ur.active else None,
+                "removed_by": ur.last_modified_by if not ur.active else None,
+            })
+        
+        return result
+
+    @staticmethod
+    def assign_role_to_user(
+        db: Session,
+        user_id: str,
+        role_id: str,
+        assigned_by: str,
+    ) -> Tuple[Optional[UserRole], Optional[str]]:
+        """
+        Assign a role to a user
+        Creates a new UserRole entry with active=True
+        Args:
+            user_id: User ID to assign role to
+            role_id: Role ID to assign
+            assigned_by: Admin/Support user ID performing the assignment
+        Returns:
+            (UserRole, error_message)
+        """
+        # Convert string UUIDs to UUID objects
+        try:
+            user_id_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+            role_id_uuid = uuid.UUID(role_id) if isinstance(role_id, str) else role_id
+            assigned_by_uuid = uuid.UUID(assigned_by) if isinstance(assigned_by, str) else assigned_by
+        except (ValueError, AttributeError):
+            return None, "Invalid UUID format"
+        
+        # Check if user exists
+        user = UserService.get_user_by_id(db, user_id)
+        if not user:
+            return None, "User not found"
+        
+        # Check if role exists
+        role = db.query(Role).filter(Role.id == role_id_uuid).first()
+        if not role:
+            return None, "Role not found"
+        
+        if not role.active:
+            return None, "Role is not active"
+        
+        # Check if there's already an active assignment
+        existing_active = db.query(UserRole).filter(
+            and_(
+                UserRole.user_id == user_id_uuid,
+                UserRole.role_id == role_id_uuid,
+                UserRole.active == True
+            )
+        ).first()
+        
+        if existing_active:
+            return None, "User already has this role assigned"
+
+        # Prevent reactivation via new row creation if role was removed before.
+        existing_inactive = db.query(UserRole).filter(
+            and_(
+                UserRole.user_id == user_id_uuid,
+                UserRole.role_id == role_id_uuid,
+                UserRole.active == False
+            )
+        ).first()
+        if existing_inactive:
+            return None, "Role assignment was previously removed and cannot be reactivated"
+        
+        # Create new role assignment
+        user_role = UserRole(
+            id=uuid.uuid4(),
+            user_id=user_id_uuid,
+            role_id=role_id_uuid,
+            created_by=assigned_by_uuid,
+            created_on=datetime.utcnow(),
+            active=True,
+        )
+        
+        db.add(user_role)
+        db.commit()
+        db.refresh(user_role)
+        
+        return user_role, None
+
+    @staticmethod
+    def remove_role_from_user(
+        db: Session,
+        user_id: str,
+        role_id: str,
+        removed_by: str,
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Remove a role from a user (soft delete - sets active=False)
+        Once removed, the entry cannot be reactivated
+        Args:
+            user_id: User ID
+            role_id: Role ID to remove
+            removed_by: Admin/Support user ID performing the removal
+        Returns:
+            (success, error_message)
+        """
+        # Convert string UUIDs to UUID objects
+        try:
+            user_id_uuid = uuid.UUID(user_id) if isinstance(user_id, str) else user_id
+            role_id_uuid = uuid.UUID(role_id) if isinstance(role_id, str) else role_id
+            removed_by_uuid = uuid.UUID(removed_by) if isinstance(removed_by, str) else removed_by
+        except (ValueError, AttributeError):
+            return False, "Invalid UUID format"
+        
+        # Find active role assignment
+        user_role = db.query(UserRole).filter(
+            and_(
+                UserRole.user_id == user_id_uuid,
+                UserRole.role_id == role_id_uuid,
+                UserRole.active == True
+            )
+        ).first()
+        
+        if not user_role:
+            return False, "User does not have this active role assignment"
+        
+        # Soft delete - set active to False and record who removed it
+        user_role.active = False
+        user_role.last_modified_by = removed_by_uuid
+        user_role.last_modified_on = datetime.utcnow()
+        
+        db.commit()
+        
+        return True, None
