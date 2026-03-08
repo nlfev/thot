@@ -293,6 +293,8 @@ export const messages = {
       fileDeleteError: 'Failed to delete file',
       viewPdf: 'View PDF',
       downloadPdf: 'Download PDF',
+      pageCount: 'Total Pages',
+      totalCount: 'Total Records',
       pageSize: 'Items per page',
       pagingInfo: 'Page {current} of {total}',
       galleryTitle: 'Page Gallery',
@@ -644,6 +646,8 @@ export const messages = {
       viewPdf: 'PDF anzeigen',
       downloadPdf: 'PDF herunterladen',
       pageSize: 'Einträge pro Seite',
+      pageCount: 'Gesamtzahl Seiten',
+      totalCount: 'Gesamtzahl Datensätze',
       pagingInfo: 'Seite {current} von {total}',
     },
 

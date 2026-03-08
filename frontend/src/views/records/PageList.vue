@@ -2,7 +2,7 @@
   <div class="pages-container">
     <div class="pages-header">
       <div class="header-title">
-        <router-link :to="`/records/${recordId}`" class="btn btn-link">
+        <router-link :to="`/records/${recordId}`" class="btn btn-light">
           {{ $t('common.back') }}
         </router-link>
         <h1>{{ $t('pages.pageListTitle') }}: {{ recordTitle }}</h1>
@@ -15,6 +15,11 @@
           {{ $t('pages.createNew') }}
         </router-link>
       </div>
+    </div>
+
+    <!-- Total Count -->
+    <div class="pages-total-count">
+      {{ $t('pages.totalCount') }}: {{ total }}
     </div>
 
     <!-- Search and Filter Section -->
@@ -88,6 +93,9 @@
             <p class="page-file">
               <strong>{{ $t('pages.uploadFile') }}:</strong>
               {{ page.location_file ? $t('common.yes') : $t('common.no') }}
+            </p>
+            <p v-if="page.page_count" class="page-count">
+              <strong>{{ $t('pages.pageCount') }}:</strong> {{ page.page_count }}
             </p>
             <div class="page-meta">
               <span v-if="page.restriction" class="badge badge-info">
@@ -296,6 +304,16 @@ export default {
   gap: 0.5rem;
 }
 
+.pages-total-count {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem;
+  background: #e7f3ff;
+  border-left: 4px solid #007bff;
+  border-radius: 4px;
+  font-weight: 500;
+  color: #004085;
+}
+
 .pages-search {
   background: #f5f5f5;
   padding: 1.5rem;
@@ -370,7 +388,8 @@ export default {
 .page-description,
 .page-content,
 .page-comment,
-.page-file {
+.page-file,
+.page-count {
   margin: 0.5rem 0;
   line-height: 1.4;
 }
