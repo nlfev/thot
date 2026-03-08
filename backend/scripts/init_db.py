@@ -1,8 +1,8 @@
 """
 Database initialization and seeding
 """
-# Add backend root to sys.path so `app` package is importable when running
-# this script directly (e.g. `python scripts/init_db.py`).
+# Add backend root to sys.path so \pp\ package is importable when running
+# this script directly (e.g. \python scripts/init_db.py\).
 import sys
 from pathlib import Path
 
@@ -83,6 +83,14 @@ def seed_database():
             {
                 "name": "user_reg",
                 "description": "User role during registration process"
+            },
+            {
+                "name": "user_scan",
+                "description": "User is allowed to create pages"
+            },
+            {
+                "name": "user_page",
+                "description": "User is allowed to change page entries"
             }
         ]
 
