@@ -2,6 +2,9 @@
   <div class="auth-container">
     <div class="card form-card">
       <h2>{{ $t('auth.registerTitle') }}</h2>
+      <div v-if="errorMessage" class="error-box" role="alert">
+        {{ errorMessage }}
+      </div>
       <form @submit.prevent="handleRegister">
         <div class="form-group">
           <label for="username">{{ $t('common.username') }}</label>
@@ -48,11 +51,13 @@ export default defineComponent({
         tosAgreed: false,
       },
       isLoading: false,
+      errorMessage: '',
     }
   },
   methods: {
     async handleRegister() {
       this.isLoading = true
+      this.errorMessage = ''
 
       try {
         const response = await this.authStore.register(
@@ -62,10 +67,19 @@ export default defineComponent({
           this.$i18n.locale
         )
 
-        // Show success message
-        alert(response.message || this.$t('auth.registrationSuccess'))
+        this.$router.push({
+          name: 'RegisterPending',
+          query: {
+            username: this.form.username,
+            email: this.form.email,
+            expiresInHours: String(response?.expires_in_hours || 24),
+          },
+        })
       } catch (error) {
-        alert(error.detail || this.$t('auth.registrationFailed'))
+        const detail = error?.detail
+        this.errorMessage = typeof detail === 'string'
+          ? detail
+          : this.$t('auth.registrationFailed')
       } finally {
         this.isLoading = false
       }
@@ -75,5 +89,12 @@ export default defineComponent({
 </script>
 
 <style scoped>
-/* Additional component-specific styles if needed */
+.error-box {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  border-radius: 0.375rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
 </style>

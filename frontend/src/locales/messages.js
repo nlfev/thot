@@ -59,6 +59,8 @@ export const messages = {
       createdOn: 'Created On',
       pagingInfo: 'Page {current} of {total}',
       itemsPerPage: 'Items per page',
+      backToLogin: 'Back to Login',
+      backToHome: 'Back to Home',
     },
 
     // Navigation
@@ -144,6 +146,14 @@ export const messages = {
       pleaseEnterOtp: 'Please enter your two-factor authentication code',
       enterOtpFromApp: 'Enter the 6-digit code from your authenticator app',
       sessionTimedOut: 'Your session ended due to 60 minutes of inactivity. Please log in again.',
+      registrationInitiated: 'Registration started',
+      checkYourEmail: 'Please check your email inbox.',
+      registrationEmailSent: 'We sent a confirmation email with a registration link. The link is valid for {hours} hours.',
+      whatNext: 'What happens next?',
+      step1CheckEmail: 'Open the email in your inbox.',
+      step2ClickLink: 'Click the registration link in that email.',
+      step3CompleteRegistration: 'Complete your registration on the next page.',
+      checkSpamFolder: 'If you do not see the email, please also check your spam folder.',
     },
 
     // User Management
@@ -462,6 +472,8 @@ export const messages = {
       createdOn: 'Erstellt am',
       pagingInfo: 'Seite {current} von {total}',
       itemsPerPage: 'Einträge pro Seite',
+      backToLogin: 'Zurück zur Anmeldung',
+      backToHome: 'Zurück zur Startseite',
     },
 
     // Navigation
@@ -547,6 +559,14 @@ export const messages = {
       pleaseEnterOtp: 'Bitte geben Sie Ihren Zwei-Faktor-Authentifizierungscode ein',
       enterOtpFromApp: 'Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein',
       sessionTimedOut: 'Ihre Sitzung wurde nach 60 Minuten Inaktivität beendet. Bitte melden Sie sich erneut an.',
+      registrationInitiated: 'Registrierung gestartet',
+      checkYourEmail: 'Bitte prüfen Sie Ihr E-Mail-Postfach.',
+      registrationEmailSent: 'Wir haben eine Bestätigungs-E-Mail mit einem Registrierungslink gesendet. Der Link ist {hours} Stunden gültig.',
+      whatNext: 'Wie geht es weiter?',
+      step1CheckEmail: 'Öffnen Sie die E-Mail in Ihrem Postfach.',
+      step2ClickLink: 'Klicken Sie auf den Registrierungslink in der E-Mail.',
+      step3CompleteRegistration: 'Schließen Sie die Registrierung auf der nächsten Seite ab.',
+      checkSpamFolder: 'Falls keine E-Mail sichtbar ist, prüfen Sie bitte auch den Spam-Ordner.',
     },
 
     // User Management

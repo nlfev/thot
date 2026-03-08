@@ -25,6 +25,17 @@ const routes = [
     meta: { requiresAuth: false },
   },
   {
+    path: '/auth/register/pending',
+    name: 'RegisterPending',
+    component: () => import('@/views/auth/RegisterPending.vue'),
+    props: (route) => ({
+      username: typeof route.query.username === 'string' ? route.query.username : '',
+      email: typeof route.query.email === 'string' ? route.query.email : '',
+      expiresInHours: Number(route.query.expiresInHours || 24),
+    }),
+    meta: { requiresAuth: false },
+  },
+  {
     path: '/auth/register/confirm/:token',
     name: 'RegisterConfirm',
     component: () => import('@/views/auth/RegisterConfirm.vue'),
