@@ -108,6 +108,7 @@
             <th>{{ $t('records.keywordsLocations') }}</th>
             <th>{{ $t('records.restriction') }}</th>
             <th>{{ $t('records.workstatus') }}</th>
+            <th>{{ $t('pages.totalCount') }}</th>
             <th>{{ $t('records.createdOn') }}</th>
             <th>{{ $t('common.actions') }}</th>
           </tr>
@@ -130,6 +131,7 @@
             </td>
             <td>{{ record.restriction || '-' }}</td>
             <td>{{ record.workstatus || '-' }}</td>
+            <td class="pages-count">{{ record.page_count || 0 }}</td>
             <td>{{ formatDate(record.created_on) }}</td>
             <td class="actions-cell">
               <router-link :to="`/records/${record.id}/pages`" class="btn btn-sm btn-secondary">
@@ -447,6 +449,11 @@ export default defineComponent({
   padding: 2px 6px;
   border-radius: 3px;
   word-break: break-word;
+}
+
+.pages-count {
+  text-align: center;
+  font-weight: 500;
 }
 
 .actions-cell {

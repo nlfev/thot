@@ -4,10 +4,10 @@ Records routes for CRUD operations
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
 
 from app.database import get_db
-from app.models import Record, Restriction, WorkStatus, KeywordName, KeywordLocation
+from app.models import Record, Restriction, WorkStatus, KeywordName, KeywordLocation, Page
 from app.utils.auth import get_current_user
 from app.utils.phonetics import generate_phonetic_codes
 from typing import Optional, List
@@ -143,6 +143,10 @@ async def list_records(
                 "keywords_locations": ", ".join(sorted([kw.name for kw in record.keywords_locations])) if record.keywords_locations else "",
                 "created_on": record.created_on.isoformat() if record.created_on else None,
                 "created_by": str(record.created_by) if record.created_by else None,
+                "page_count": db.query(func.count(Page.id)).filter(
+                    Page.record_id == record.id,
+                    Page.active == True
+                ).scalar() or 0,
             }
             for record in records
         ],
