@@ -384,6 +384,14 @@ async def create_page(
 ):
     """
     Create a new page with optional file upload
+    Only users with 'admin' or 'user_scan' role can create pages
+        # Check user permissions
+        if not (current_user.has_role("admin") or current_user.has_role("user_scan")):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions. Only admin or user_scan can create pages."
+            )
+    
     """
     # Validate that record exists
     record = db.query(Record).filter(Record.id == record_id).first()
@@ -465,6 +473,17 @@ async def update_page(
 ):
     """
     Update an existing page
+    Only users with 'admin' or 'user_page' role can update pages
+        can_edit_page = current_user.has_role("admin") or current_user.has_role("user_page")
+        can_manage_file = current_user.has_role("admin") or current_user.has_role("user_scan")
+
+        # User must be allowed to either edit page data or manage files.
+        if not (can_edit_page or can_manage_file):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions. Only admin, user_page, or user_scan can update pages."
+            )
+    
     """
     # Get existing page
     existing_page = db.query(Page).filter(Page.id == page_id, Page.active == True).first()
@@ -492,23 +511,34 @@ async def update_page(
                 detail="WorkStatus not found"
             )
     
-    # Update fields
-    existing_page.name = name
-    existing_page.description = description
-    existing_page.page = page
-    existing_page.comment = comment
-    existing_page.restriction_id = restriction_id
-    existing_page.workstatus_id = workstatus_id
-    existing_page.last_modified_by = current_user.id
-    existing_page.last_modified_on = datetime.utcnow()
+    # Update non-file fields only for users with page edit permissions.
+    if can_edit_page:
+        existing_page.name = name
+        existing_page.description = description
+        existing_page.page = page
+        existing_page.comment = comment
+        existing_page.restriction_id = restriction_id
+        existing_page.workstatus_id = workstatus_id
+        existing_page.last_modified_by = current_user.id
+        existing_page.last_modified_on = datetime.utcnow()
     
     # Handle file deletion
     if delete_file and existing_page.location_file:
+        if not can_manage_file:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to remove files."
+            )
         delete_uploaded_file(existing_page.location_file)
         existing_page.location_file = None
     
     # Handle file upload (replaces existing file)
     if file and file.filename:
+        if not can_manage_file:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions to upload files."
+            )
         validate_file(file)
         # Delete old file if exists
         if existing_page.location_file:

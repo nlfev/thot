@@ -76,13 +76,13 @@ const routes = [
     path: '/records/new',
     name: 'RecordCreate',
     component: () => import('@/views/records/RecordForm.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresRole: ['admin', 'user_scan'] },
   },
   {
     path: '/records/:id',
     name: 'RecordEdit',
     component: () => import('@/views/records/RecordForm.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresRole: ['admin', 'user_page'] },
   },
   {
     path: '/records/:recordId/pages',
@@ -100,7 +100,7 @@ const routes = [
     path: '/records/:recordId/pages/new',
     name: 'PageCreate',
     component: () => import('@/views/records/PageForm.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresRole: ['admin', 'user_scan'] },
   },
   {
     path: '/records/:recordId/pages/:pageId',
@@ -118,7 +118,7 @@ const routes = [
     path: '/records/:recordId/pages/:pageId/edit',
     name: 'PageEdit',
     component: () => import('@/views/records/PageForm.vue'),
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, requiresRole: ['admin', 'user_page', 'user_scan'] },
   },
   {
     path: '/api-docs',

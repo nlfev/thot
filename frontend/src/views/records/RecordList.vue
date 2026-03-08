@@ -3,7 +3,7 @@
     <div class="records-header">
       <h1>{{ $t('records.title') }}</h1>
       <div class="header-actions">
-        <router-link to="/records/new" class="btn btn-primary">
+        <router-link v-if="canCreateRecord" to="/records/new" class="btn btn-primary">
           {{ $t('records.createNew') }}
         </router-link>
       </div>
@@ -137,10 +137,10 @@
               <router-link :to="`/records/${record.id}/pages`" class="btn btn-sm btn-secondary">
                 {{ $t('pages.title') }}
               </router-link>
-              <router-link :to="`/records/${record.id}`" class="btn btn-sm btn-info">
+              <router-link v-if="canEditRecord" :to="`/records/${record.id}`" class="btn btn-sm btn-info">
                 {{ $t('common.edit') }}
               </router-link>
-              <button class="btn btn-sm btn-danger" @click="deleteRecord(record.id)">
+              <button v-if="canEditRecord" class="btn btn-sm btn-danger" @click="deleteRecord(record.id)">
                 {{ $t('common.delete') }}
               </button>
             </td>
@@ -182,9 +182,14 @@
 <script>
 import { defineComponent } from 'vue'
 import { recordService } from '@/services/record'
+import { useAuthStore } from '@/stores/auth'
 
 export default defineComponent({
   name: 'RecordList',
+  setup() {
+    const authStore = useAuthStore()
+    return { authStore }
+  },
   data() {
     return {
       records: [],
@@ -203,6 +208,12 @@ export default defineComponent({
   computed: {
     totalPages() {
       return Math.ceil(this.totalRecords / this.pageSize)
+    },
+    canCreateRecord() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_scan')
+    },
+    canEditRecord() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_page')
     },
   },
   mounted() {

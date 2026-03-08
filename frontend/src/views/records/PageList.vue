@@ -11,7 +11,7 @@
         <router-link :to="`/records/${recordId}/pages-gallery`" class="btn btn-info">
           {{ $t('pages.galleryTitle') }}
         </router-link>
-        <router-link :to="`/records/${recordId}/pages/new`" class="btn btn-primary">
+        <router-link v-if="canCreatePage" :to="`/records/${recordId}/pages/new`" class="btn btn-primary">
           {{ $t('pages.createNew') }}
         </router-link>
       </div>
@@ -117,10 +117,10 @@
               <router-link :to="`/records/${recordId}/pages/${page.id}/viewer`" class="btn btn-sm btn-primary">
                 {{ $t('pages.openPdfViewer') }}
               </router-link>
-              <router-link :to="`/records/${recordId}/pages/${page.id}/edit`" class="btn btn-sm btn-secondary">
-                {{ $t('common.edit') }}
+              <router-link v-if="canEditPage || canUploadExistingPage" :to="`/records/${recordId}/pages/${page.id}/edit`" class="btn btn-sm btn-secondary">
+                {{ canEditPage ? $t('common.edit') : $t('pages.uploadFile') }}
               </router-link>
-              <button class="btn btn-sm btn-danger" @click="handleDelete(page.id)">
+              <button v-if="canEditPage" class="btn btn-sm btn-danger" @click="handleDelete(page.id)">
                 {{ $t('common.delete') }}
               </button>
             </div>
@@ -153,7 +153,7 @@
     <!-- Empty State -->
     <div v-if="!loading && pages.length === 0" class="empty-state">
       <p>{{ $t('pages.noPages') }}</p>
-      <router-link :to="`/records/${recordId}/pages/new`" class="btn btn-primary">
+      <router-link v-if="canCreatePage" :to="`/records/${recordId}/pages/new`" class="btn btn-primary">
         {{ $t('pages.createNew') }}
       </router-link>
     </div>
@@ -164,12 +164,14 @@
 import { useRoute } from 'vue-router'
 import { pageService } from '@/services/page'
 import { recordService } from '@/services/record'
+import { useAuthStore } from '@/stores/auth'
 
 export default {
   name: 'PageList',
   setup() {
     return {
       route: useRoute(),
+      authStore: useAuthStore(),
     }
   },
   data() {
@@ -189,6 +191,15 @@ export default {
   computed: {
     totalPages() {
       return Math.ceil(this.total / this.pageSize)
+    },
+    canCreatePage() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_scan')
+    },
+    canEditPage() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_page')
+    },
+    canUploadExistingPage() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_scan')
     },
   },
   methods: {

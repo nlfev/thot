@@ -19,6 +19,7 @@
           type="text"
           class="form-control"
           :placeholder="$t('pages.pageNamePlaceholder')"
+          :disabled="isUploadOnlyMode"
           required
         />
       </div>
@@ -30,6 +31,7 @@
           v-model="form.description"
           class="form-control"
           :placeholder="$t('pages.descriptionPlaceholder')"
+          :disabled="isUploadOnlyMode"
           rows="3"
         />
       </div>
@@ -41,6 +43,7 @@
           v-model="form.page"
           class="form-control"
           :placeholder="$t('pages.pageContentPlaceholder')"
+          :disabled="isUploadOnlyMode"
           rows="8"
         />
       </div>
@@ -52,6 +55,7 @@
           v-model="form.comment"
           class="form-control"
           :placeholder="$t('pages.commentPlaceholder')"
+          :disabled="isUploadOnlyMode"
           rows="3"
         />
       </div>
@@ -59,7 +63,7 @@
       <div class="form-row">
         <div class="form-group">
           <label for="restriction">{{ $t('pages.restriction') }} *</label>
-          <select id="restriction" v-model="form.restriction_id" class="form-control" required>
+          <select id="restriction" v-model="form.restriction_id" class="form-control" :disabled="isUploadOnlyMode" required>
             <option value="">{{ $t('pages.selectRestriction') }}</option>
             <option v-for="restriction in restrictions" :key="restriction.id" :value="restriction.id">
               {{ restriction.name }}
@@ -69,7 +73,7 @@
 
         <div class="form-group">
           <label for="workstatus">{{ $t('pages.workstatus') }}</label>
-          <select id="workstatus" v-model="form.workstatus_id" class="form-control">
+          <select id="workstatus" v-model="form.workstatus_id" class="form-control" :disabled="isUploadOnlyMode">
             <option value="">{{ $t('pages.selectWorkStatus') }}</option>
             <option v-for="status in workstatuses" :key="status.id" :value="status.id">
               {{ status.status }} {{ status.area ? `(${status.area})` : '' }}
@@ -78,7 +82,7 @@
         </div>
       </div>
 
-      <div class="form-group">
+      <div class="form-group" v-if="canManageFile">
         <label for="file">{{ $t('pages.uploadFile') }}</label>
         <input id="file" type="file" class="form-control" accept="application/pdf,.pdf" @change="onFileChange" />
         <small class="form-text">
@@ -107,9 +111,15 @@
 <script>
 import { recordService } from '@/services/record'
 import { pageService } from '@/services/page'
+import { useAuthStore } from '@/stores/auth'
 
 export default {
   name: 'PageForm',
+  setup() {
+    return {
+      authStore: useAuthStore(),
+    }
+  },
   data() {
     return {
       loading: false,
@@ -140,6 +150,18 @@ export default {
     },
     pageId() {
       return this.$route.params.pageId
+    },
+    canCreatePage() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_scan')
+    },
+    canEditPage() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_page')
+    },
+    canManageFile() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_scan')
+    },
+    isUploadOnlyMode() {
+      return this.isEditMode && !this.canEditPage && this.canManageFile
     },
   },
   mounted() {
@@ -193,6 +215,11 @@ export default {
       this.selectedFileName = file?.name || ''
     },
     async handleSubmit() {
+      if ((!this.isEditMode && !this.canCreatePage) || (this.isEditMode && !this.canEditPage && !this.canManageFile)) {
+        this.error = this.$t('messages.unauthorised')
+        return
+      }
+
       this.submitting = true
       this.error = null
       try {
@@ -208,6 +235,16 @@ export default {
         }
 
         if (this.isEditMode) {
+          // user_scan can upload/remove files on existing pages but cannot edit metadata fields
+          if (this.isUploadOnlyMode) {
+            const page = await pageService.getPage(this.pageId)
+            payload.name = page.name
+            payload.description = page.description || null
+            payload.page = page.page || null
+            payload.comment = page.comment || null
+            payload.restriction_id = page.restriction_id
+            payload.workstatus_id = page.workstatus_id || null
+          }
           payload.delete_file = this.form.delete_file
           await pageService.updatePage(this.pageId, payload)
         } else {
