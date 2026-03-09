@@ -194,22 +194,22 @@ async def login(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=error or "Invalid username or password"
+            detail="Die Anmeldung ist fehlgeschlagen"
         )
 
     # Check if OTP is enabled and provided
     if user.otp_enabled:
         if not request.otp_code:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Two-factor authentication required"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Die Anmeldung ist fehlgeschlagen"
             )
 
         # Verify OTP
         if not verify_otp(user.otp_secret, request.otp_code):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid OTP code"
+                detail="Die Anmeldung ist fehlgeschlagen"
             )
 
     # Create access token
