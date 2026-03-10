@@ -104,4 +104,21 @@ export const recordService = {
       throw error.response?.data || error
     }
   },
+
+  /**
+   * Download combined PDF with all pages of a record
+   */
+  async downloadCombinedPdf(recordId) {
+    try {
+      const response = await api.get(`/records/${recordId}/download-combined-pdf`, {
+        responseType: 'blob',
+      })
+      return {
+        blob: response.data,
+        contentDisposition: response.headers['content-disposition'] || '',
+      }
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
 }

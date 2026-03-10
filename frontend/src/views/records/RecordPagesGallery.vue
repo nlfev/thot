@@ -6,6 +6,14 @@
         <router-link :to="`/records`" class="btn btn-light">
           {{ $t('common.back') }}
         </router-link>
+        <button
+          class="btn btn-success"
+          @click="downloadCombinedPdf"
+          :disabled="loadingCombinedPdf || pages.length === 0"
+          :title="$t('pages.downloadAllPagesAsPdf')"
+        >
+          {{ loadingCombinedPdf ? $t('common.loading') + '...' : $t('pages.downloadCombinedPdf') }}
+        </button>
         <h1>{{ $t('pages.galleryTitle') }}: {{ recordTitle }}</h1>
       </div>
       <div class="header-actions">
@@ -136,6 +144,7 @@ export default {
       recordTitle: '',
       loading: false,
       loadingPdf: false,
+      loadingCombinedPdf: false,
       loadingThumbnails: {},
       error: null,
       thumbnailUrls: {},
@@ -289,6 +298,45 @@ export default {
         console.error('Error downloading PDF:', err)
         alert(this.$t('pages.downloadError'))
       }
+    },
+
+    async downloadCombinedPdf() {
+      if (!this.recordId) {
+        return
+      }
+
+      this.loadingCombinedPdf = true
+      try {
+        const { blob, contentDisposition } = await recordService.downloadCombinedPdf(this.recordId)
+        
+        // Extract filename from content-disposition or use record title
+        let filename = `${(this.recordTitle || 'record').replace(/\s+/g, '_')}_combined.pdf`
+        if (contentDisposition) {
+          const matches = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/.exec(contentDisposition)
+          if (matches && matches[1]) {
+            filename = matches[1].replace(/['"]/g, '')
+          }
+        }
+
+        // Trigger download
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = filename
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+      } catch (err) {
+        console.error('Error downloading combined PDF:', err)
+        alert(this.$t('pages.downloadCombinedError'))
+      } finally {
+        this.loadingCombinedPdf = false
+      }
+    },
+
+    toggleThumbnails() {
+      this.showThumbnails = !this.showThumbnails
     },
 
     handleThumbnailError(pageId) {

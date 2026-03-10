@@ -2,14 +2,21 @@
 Records routes for CRUD operations
 """
 
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+from fastapi.responses import Response
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_, func
+from pypdf import PdfReader, PdfWriter
 
 from app.database import get_db
 from app.models import Record, Restriction, WorkStatus, KeywordName, KeywordLocation, Page
 from app.utils.auth import get_current_user
 from app.utils.phonetics import generate_phonetic_codes
+from config import config
 from typing import Optional, List
 
 router = APIRouter(
@@ -217,6 +224,113 @@ async def get_record(
         "last_modified_on": record.last_modified_on.isoformat() if record.last_modified_on else None,
         "last_modified_by": str(record.last_modified_by) if record.last_modified_by else None,
     }
+
+
+@router.get("/{record_id}/download-combined-pdf")
+async def download_combined_pdf(
+    record_id: str,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Generate and download a combined PDF with all pages of a record.
+    Each page's PDF is watermarked with user information before combining.
+    """
+    # Get the record
+    record = db.query(Record).filter(Record.id == record_id, Record.active == True).first()
+    
+    if not record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Record not found"
+        )
+    
+    # Get all pages for this record that have PDF files, ordered by name
+    pages = (
+        db.query(Page)
+        .options(joinedload(Page.record))
+        .filter(
+            Page.record_id == record_id,
+            Page.active == True,
+            Page.location_file.isnot(None)
+        )
+        .order_by(Page.name)
+        .all()
+    )
+    
+    if not pages:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No PDF pages found for this record"
+        )
+    
+    try:
+        from app.services.pdf_watermark_service import create_watermarked_pdf
+        
+        # Create a PDF writer to combine all pages
+        combined_writer = PdfWriter()
+        downloaded_at = datetime.now()
+        
+        # Process each page
+        for page in pages:
+            source_pdf_path = (config.UPLOAD_DIRECTORY / page.location_file).resolve()
+            
+            if not source_pdf_path.exists() or not source_pdf_path.is_file():
+                # Skip pages where PDF file is missing
+                continue
+            
+            # Generate watermarked PDF for this page
+            watermarked_bytes = create_watermarked_pdf(
+                source_pdf=source_pdf_path,
+                username=current_user.username,
+                downloaded_at=downloaded_at,
+                record_name=record.title,
+                record_signature=record.signature,
+                page_text=page.page,
+                watermark_image_path=config.get_watermark_image_path(),
+            )
+            
+            # Read the watermarked PDF and append all its pages to the combined PDF
+            watermarked_reader = PdfReader(BytesIO(watermarked_bytes))
+            for pdf_page in watermarked_reader.pages:
+                combined_writer.add_page(pdf_page)
+        
+        # Check if we have any pages to output
+        if len(combined_writer.pages) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No valid PDF pages could be processed"
+            )
+        
+        # Write combined PDF to bytes
+        output = BytesIO()
+        combined_writer.write(output)
+        output.seek(0)
+        combined_bytes = output.read()
+        
+        # Create safe filename from record title or signature
+        safe_filename = record.title or record.signature or record_id
+        # Remove or replace characters that are problematic in filenames
+        safe_filename = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in safe_filename)
+        safe_filename = safe_filename[:100]  # Limit length
+        download_name = f"{safe_filename}_combined.pdf"
+        
+        return Response(
+            content=combined_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{download_name}"',
+                "Cache-Control": "no-store",
+            },
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate combined PDF: {str(exc)}",
+        )
 
 
 @router.post("")
