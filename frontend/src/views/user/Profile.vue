@@ -88,12 +88,23 @@
 
         <div class="form-group">
           <label for="currentPassword">{{ $t('user.currentPassword') }}</label>
-          <input 
-            v-model="passwordForm.current_password" 
-            type="password" 
-            id="currentPassword"
-            @focus="clearMessages"
-          />
+          <div class="password-input-wrapper">
+            <input 
+              v-model="passwordForm.current_password" 
+              :type="showCurrentPassword ? 'text' : 'password'" 
+              id="currentPassword"
+              @focus="clearMessages"
+            />
+            <button
+              type="button"
+              class="password-toggle"
+              @click="showCurrentPassword = !showCurrentPassword"
+              :aria-label="showCurrentPassword ? 'Hide password' : 'Show password'"
+            >
+              <span v-if="showCurrentPassword">👁️</span>
+              <span v-else>👁️‍🗨️</span>
+            </button>
+          </div>
         </div>
 
         <div class="password-requirements">
@@ -117,23 +128,45 @@
         <div class="form-row">
           <div class="form-group">
             <label for="newPassword">{{ $t('user.newPassword') }}</label>
-            <input 
-              v-model="passwordForm.new_password" 
-              type="password" 
-              id="newPassword"
-              @input="updatePasswordValidation"
-              @focus="clearMessages"
-            />
+            <div class="password-input-wrapper">
+              <input 
+                v-model="passwordForm.new_password" 
+                :type="showNewPassword ? 'text' : 'password'" 
+                id="newPassword"
+                @input="updatePasswordValidation"
+                @focus="clearMessages"
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                @click="showNewPassword = !showNewPassword"
+                :aria-label="showNewPassword ? 'Hide password' : 'Show password'"
+              >
+                <span v-if="showNewPassword">👁️</span>
+                <span v-else>👁️‍🗨️</span>
+              </button>
+            </div>
           </div>
           <div class="form-group">
             <label for="newPasswordConfirm">{{ $t('user.confirmNewPassword') }}</label>
-            <input 
-              v-model="passwordForm.new_password_confirm" 
-              type="password" 
-              id="newPasswordConfirm"
-              @input="updatePasswordValidation"
-              @focus="clearMessages"
-            />
+            <div class="password-input-wrapper">
+              <input 
+                v-model="passwordForm.new_password_confirm" 
+                :type="showConfirmPassword ? 'text' : 'password'" 
+                id="newPasswordConfirm"
+                @input="updatePasswordValidation"
+                @focus="clearMessages"
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                @click="showConfirmPassword = !showConfirmPassword"
+                :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'"
+              >
+                <span v-if="showConfirmPassword">👁️</span>
+                <span v-else>👁️‍🗨️</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -187,6 +220,9 @@ export default defineComponent({
       successMessage: '',
       errorMessage: '',
       isLoading: false,
+      showCurrentPassword: false,
+      showNewPassword: false,
+      showConfirmPassword: false,
     }
   },
   computed: {
@@ -379,9 +415,43 @@ h3 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
-  margin-bottom: 1.5rem;
 }
 
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  flex: 1;
+  padding-right: 3rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.password-toggle:hover {
+  opacity: 1;
+}
+
+.password-toggle:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 label {
   display: block;
   margin-bottom: 0.5rem;

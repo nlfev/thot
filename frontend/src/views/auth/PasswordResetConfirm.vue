@@ -30,26 +30,48 @@
 
         <div class="form-group">
           <label for="newPassword">{{ $t('user.newPassword') }}</label>
-          <input
-            id="newPassword"
-            v-model="form.newPassword"
-            type="password"
-            required
-            minlength="10"
-            maxlength="60"
-          >
+          <div class="password-input-wrapper">
+            <input
+              id="newPassword"
+              v-model="form.newPassword"
+              :type="showNewPassword ? 'text' : 'password'"
+              required
+              minlength="10"
+              maxlength="60"
+            >
+            <button
+              type="button"
+              class="password-toggle"
+              @click="showNewPassword = !showNewPassword"
+              :aria-label="showNewPassword ? 'Hide password' : 'Show password'"
+            >
+              <span v-if="showNewPassword">👁️</span>
+              <span v-else>👁️‍🗨️</span>
+            </button>
+          </div>
         </div>
 
         <div class="form-group">
           <label for="confirmPassword">{{ $t('user.confirmNewPassword') }}</label>
-          <input
-            id="confirmPassword"
-            v-model="form.confirmPassword"
-            type="password"
-            required
-            minlength="10"
-            maxlength="60"
-          >
+          <div class="password-input-wrapper">
+            <input
+              id="confirmPassword"
+              v-model="form.confirmPassword"
+              :type="showConfirmPassword ? 'text' : 'password'"
+              required
+              minlength="10"
+              maxlength="60"
+            >
+            <button
+              type="button"
+              class="password-toggle"
+              @click="showConfirmPassword = !showConfirmPassword"
+              :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'"
+            >
+              <span v-if="showConfirmPassword">👁️</span>
+              <span v-else>👁️‍🗨️</span>
+            </button>
+          </div>
         </div>
 
         <p
@@ -83,6 +105,8 @@ export default defineComponent({
       loading: true,
       isLoading: false,
       tokenError: '',
+      showNewPassword: false,
+      showConfirmPassword: false,
       form: {
         newPassword: '',
         confirmPassword: '',
@@ -131,4 +155,39 @@ export default defineComponent({
 </script>
 
 <style scoped>
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  flex: 1;
+  padding-right: 3rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.password-toggle:hover {
+  opacity: 1;
+}
+
+.password-toggle:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 </style>

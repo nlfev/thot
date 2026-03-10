@@ -71,22 +71,44 @@
           </div>
           <div class="form-group">
             <label for="password">{{ $t('common.password') }}</label>
-            <input 
-              v-model="form.password" 
-              type="password" 
-              id="password" 
-              required 
-              @input="updatePasswordValidation"
-            />
+            <div class="password-input-wrapper">
+              <input 
+                v-model="form.password" 
+                :type="showPassword ? 'text' : 'password'" 
+                id="password" 
+                required 
+                @input="updatePasswordValidation"
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                @click="showPassword = !showPassword"
+                :aria-label="showPassword ? 'Hide password' : 'Show password'"
+              >
+                <span v-if="showPassword">👁️</span>
+                <span v-else>👁️‍🗨️</span>
+              </button>
+            </div>
           </div>
           <div class="form-group">
             <label for="passwordConfirm">{{ $t('auth.confirmPassword') }}</label>
-            <input 
-              v-model="form.passwordConfirm" 
-              type="password" 
-              id="passwordConfirm" 
-              required 
-            />
+            <div class="password-input-wrapper">
+              <input 
+                v-model="form.passwordConfirm" 
+                :type="showPasswordConfirm ? 'text' : 'password'" 
+                id="passwordConfirm" 
+                required 
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                @click="showPasswordConfirm = !showPasswordConfirm"
+                :aria-label="showPasswordConfirm ? 'Hide password' : 'Show password'"
+              >
+                <span v-if="showPasswordConfirm">👁️</span>
+                <span v-else>👁️‍🗨️</span>
+              </button>
+            </div>
             <small v-if="form.password && form.passwordConfirm && form.password !== form.passwordConfirm" class="error">
               {{ $t('auth.passwordsMustMatch') }}
             </small>
@@ -158,6 +180,8 @@ export default defineComponent({
       hasMinLength: false,
       hasUpperLower: false,
       hasDigitOrSpecial: false,
+      showPassword: false,
+      showPasswordConfirm: false,
     }
   },
   computed: {
@@ -294,10 +318,46 @@ input[type="text"],
 input[type="email"],
 input[type="password"] {
   width: 100%;
-  padding: 10px;
+  padding: 0.75rem;
   border: 1px solid #ddd;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 1rem;
+}
+
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  flex: 1;
+  padding-right: 3rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.password-toggle:hover {
+  opacity: 1;
+}
+
+.password-toggle:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 input[readonly] {

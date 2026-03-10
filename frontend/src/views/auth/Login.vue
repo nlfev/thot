@@ -11,7 +11,23 @@
         </div>
         <div class="form-group">
           <label for="password">{{ $t('common.password') }}</label>
-          <input v-model="form.password" type="password" id="password" required />
+          <div class="password-input-wrapper">
+            <input 
+              v-model="form.password" 
+              :type="showPassword ? 'text' : 'password'" 
+              id="password" 
+              required 
+            />
+            <button
+              type="button"
+              class="password-toggle"
+              @click="showPassword = !showPassword"
+              :aria-label="showPassword ? 'Hide password' : 'Show password'"
+            >
+              <span v-if="showPassword">👁️</span>
+              <span v-else>👁️‍🗨️</span>
+            </button>
+          </div>
         </div>
         <div class="form-group">
           <label for="otp">
@@ -58,6 +74,7 @@ export default defineComponent({
     const error = ref('')
     const sessionNotice = ref('')
     const isLoading = ref(false)
+    const showPassword = ref(false)
 
     return {
       authStore,
@@ -65,6 +82,7 @@ export default defineComponent({
       error,
       sessionNotice,
       isLoading,
+      showPassword,
     }
   },
   mounted() {
@@ -98,5 +116,39 @@ export default defineComponent({
 </script>
 
 <style scoped>
-/* Additional component-specific styles if needed */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper input {
+  flex: 1;
+  padding-right: 3rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.password-toggle:hover {
+  opacity: 1;
+}
+
+.password-toggle:focus {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 </style>
