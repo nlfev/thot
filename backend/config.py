@@ -97,6 +97,7 @@ class Config:
     FEATURE_OTP_ENABLED = os.getenv("FEATURE_OTP_ENABLED", "true").lower() == "true"
     FEATURE_EMAIL_VERIFICATION_ENABLED = os.getenv("FEATURE_EMAIL_VERIFICATION_ENABLED", "true").lower() == "true"
     FEATURE_CORPORATE_APPROVALS_ENABLED = os.getenv("FEATURE_CORPORATE_APPROVALS_ENABLED", "true").lower() == "true"
+    CLOSED_REGISTRATION = os.getenv("CLOSED_REGISTRATION", "false").lower() == "true"
 
     # File Upload Configuration
     _DEFAULT_UPLOAD_DIRECTORY = Path(__file__).parent / "uploads"

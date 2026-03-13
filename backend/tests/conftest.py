@@ -5,11 +5,15 @@ Pytest configuration
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
 import os
 import sys
 
 # Add backend to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# SQLite does not support the UUID column type natively; patch it to use CHAR(32)
+SQLiteTypeCompiler.visit_UUID = lambda self, type_, **kw: "CHAR(32)"
 
 from app.database import Base, get_db
 from app.main import app

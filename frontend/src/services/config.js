@@ -62,6 +62,8 @@ function getDefaultConfig() {
       otp: true,
       emailVerification: true,
       corporateApprovals: true,
+      closedRegistration: false,
+      closedRegistrationConfigured: false,
     },
     languages: {
       en: 'English',

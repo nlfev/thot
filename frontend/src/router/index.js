@@ -32,6 +32,7 @@ const routes = [
       username: typeof route.query.username === 'string' ? route.query.username : '',
       email: typeof route.query.email === 'string' ? route.query.email : '',
       expiresInHours: Number(route.query.expiresInHours || 24),
+      admin: route.query.admin === 'true',
     }),
     meta: { requiresAuth: false },
   },
@@ -39,6 +40,12 @@ const routes = [
     path: '/auth/register/confirm/:token',
     name: 'RegisterConfirm',
     component: () => import('@/views/auth/RegisterConfirm.vue'),
+    meta: { requiresAuth: false },
+  },
+  {
+    path: '/auth/otp-setup',
+    name: 'OTPSetup',
+    component: () => import('@/views/auth/OTPSetup.vue'),
     meta: { requiresAuth: false },
   },
   {

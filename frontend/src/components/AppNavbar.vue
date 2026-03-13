@@ -21,7 +21,7 @@
         <span class="nav-label">{{ t('nav.authentication') }}</span>
         <ul>
           <li><router-link to="/auth/login" @click="closeMenu">{{ t('nav.login') }}</router-link></li>
-          <li><router-link to="/auth/register" @click="closeMenu">{{ t('nav.register') }}</router-link></li>
+          <li v-if="showPublicRegisterLink"><router-link to="/auth/register" @click="closeMenu">{{ t('nav.register') }}</router-link></li>
         </ul>
       </li>
 
@@ -52,6 +52,9 @@
       <li v-if="authStore.hasRole('support') || authStore.hasRole('admin')" class="nav-section">
         <span class="nav-label">{{ t('nav.administration') }}</span>
         <ul>
+          <li v-if="showPrivilegedRegisterLink">
+            <router-link to="/auth/register" @click="closeMenu">{{ t('nav.register') }}</router-link>
+          </li>
           <li v-if="authStore.hasRole('admin')">
             <router-link to="/admin/roles" @click="closeMenu">{{ t('nav.roles') }}</router-link>
           </li>
@@ -74,8 +77,9 @@
 </template>
 
 <script>
-import { defineComponent } from 'vue'
+import { computed, defineComponent } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useAppStore } from '@/stores/app'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
@@ -83,13 +87,28 @@ export default defineComponent({
   name: 'AppNavbar',
   setup() {
     const authStore = useAuthStore()
+    const appStore = useAppStore()
     const router = useRouter()
     const { t } = useI18n()
+    const closedRegistration = computed(
+      () => appStore.config?.features?.closedRegistration ?? false
+    )
+    const showPublicRegisterLink = computed(
+      () => !authStore.isAuthenticated && !closedRegistration.value
+    )
+    const showPrivilegedRegisterLink = computed(
+      () => authStore.isAuthenticated
+        && closedRegistration.value
+        && (authStore.hasRole('support') || authStore.hasRole('admin'))
+    )
 
     return {
       authStore,
+      appStore,
       router,
       t,
+      showPublicRegisterLink,
+      showPrivilegedRegisterLink,
     }
   },
   data() {

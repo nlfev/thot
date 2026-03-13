@@ -5,7 +5,15 @@
       <div v-if="errorMessage" class="error-box" role="alert">
         {{ errorMessage }}
       </div>
-      <form @submit.prevent="handleRegister">
+      <div v-if="isClosedRegistration && !canCreateClosedRegistration" class="info-box" role="status">
+        <p class="info-title">{{ $t('auth.registrationRestrictedTitle') }}</p>
+        <p>{{ $t('auth.registrationRestrictedMessage') }}</p>
+        <p>{{ $t('auth.registrationRestrictedHint') }}</p>
+        <router-link to="/auth/login" class="link-action">
+          {{ $t('common.login') }}
+        </router-link>
+      </div>
+      <form v-else @submit.prevent="handleRegister">
         <div class="form-group">
           <label for="username">{{ $t('common.username') }}</label>
           <input v-model="form.username" type="text" id="username" required />
@@ -15,12 +23,15 @@
           <label for="email">{{ $t('common.email') }}</label>
           <input v-model="form.email" type="email" id="email" required />
         </div>
-        <div class="checkbox-group">
+        <div v-if="!isClosedRegistration" class="checkbox-group">
           <label for="tos" class="checkbox-label">
             <input v-model="form.tosAgreed" type="checkbox" id="tos" required />
             <span>{{ $t('auth.tosAgree') }}</span>
           </label>
           <a href="/terms-of-service" target="_blank">{{ $t('auth.tosLink') }}</a>
+        </div>
+        <div v-else class="info-box compact" role="note">
+          <p>{{ $t('auth.closedRegistrationAdminInfo') }}</p>
         </div>
         <button type="submit" :disabled="isLoading">
           {{ isLoading ? $t('common.loading') : $t('common.register') }}
@@ -37,14 +48,17 @@
 <script>
 import { defineComponent } from 'vue'
 import { useAuthStore } from '@/stores/auth'
+import { useAppStore } from '@/stores/app'
 
 export default defineComponent({
   name: 'Register',
   setup() {
     const authStore = useAuthStore()
+    const appStore = useAppStore()
 
     return {
       authStore,
+      appStore,
       form: {
         username: '',
         email: '',
@@ -54,8 +68,20 @@ export default defineComponent({
       errorMessage: '',
     }
   },
+  computed: {
+    isClosedRegistration() {
+      return this.appStore.config?.features?.closedRegistration ?? false
+    },
+    canCreateClosedRegistration() {
+      return this.authStore.hasRole('support') || this.authStore.hasRole('admin')
+    },
+  },
   methods: {
     async handleRegister() {
+      if (this.isClosedRegistration && !this.canCreateClosedRegistration) {
+        return
+      }
+
       this.isLoading = true
       this.errorMessage = ''
 
@@ -63,7 +89,7 @@ export default defineComponent({
         const response = await this.authStore.register(
           this.form.username,
           this.form.email,
-          this.form.tosAgreed,
+          this.isClosedRegistration ? false : this.form.tosAgreed,
           this.$i18n.locale
         )
 
@@ -73,6 +99,7 @@ export default defineComponent({
             username: this.form.username,
             email: this.form.email,
             expiresInHours: String(response?.expires_in_hours || 24),
+            admin: String(Boolean(response?.admin)),
           },
         })
       } catch (error) {
@@ -96,5 +123,28 @@ export default defineComponent({
   border-radius: 0.375rem;
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
+}
+
+.info-box {
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1e3a8a;
+  border-radius: 0.375rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.info-box.compact {
+  padding: 0.75rem 1rem;
+}
+
+.info-title {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.link-action {
+  display: inline-block;
+  margin-top: 0.75rem;
 }
 </style>

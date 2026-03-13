@@ -13,7 +13,7 @@ import qrcode
 import io
 import base64
 
-from app.models import User, UserRegistration, Role, UserRole
+from app.models import User, UserRegistration, Role, UserRole, UserConfirmation, UserConfirmations
 from app.utils import hash_password
 from config import config
 
@@ -72,7 +72,7 @@ class RegistrationService:
 
     @staticmethod
     def initiate_registration(
-        db: Session, username: str, email: str
+        db: Session, username: str, email: str, admin: bool = False
     ) -> Tuple[Optional[UserRegistration], Optional[str]]:
         """
         Initiate registration process
@@ -106,6 +106,7 @@ class RegistrationService:
                 email=email,
                 token=token,
                 expires_at=expires_at,
+                admin=admin,
             )
 
             db.add(registration)
@@ -161,6 +162,43 @@ class RegistrationService:
         return user_count == 0
 
     @staticmethod
+    def is_closed_registration_effective(db: Session) -> bool:
+        """
+        Closed registration is effective only when configured and at least one user exists.
+        This keeps initial bootstrap registration open.
+        """
+        if not config.CLOSED_REGISTRATION:
+            return False
+        return db.query(User).count() > 0
+
+    @staticmethod
+    def create_tos_confirmation(
+        db: Session,
+        user_id,
+        registration: UserRegistration,
+    ) -> None:
+        """Create ToS confirmation entry for a newly created user."""
+        confirmation = (
+            db.query(UserConfirmation)
+            .filter(UserConfirmation.confirmation_short == "ToS")
+            .first()
+        )
+        if not confirmation:
+            logger.warning("ToS confirmation master entry missing; skipping user confirmation insert")
+            return
+
+        created_on = datetime.now(timezone.utc)
+
+        user_confirmation = UserConfirmations(
+            id=uuid.uuid4(),
+            userid=user_id,
+            confirmation=confirmation.id,
+            comment="Accepted during registration",
+            created_on=created_on,
+        )
+        db.add(user_confirmation)
+
+    @staticmethod
     def generate_otp_qr_code(username: str, otp_secret: str) -> str:
         """
         Generate QR code for OTP setup
@@ -199,6 +237,7 @@ class RegistrationService:
         password: str,
         corporate_number: Optional[str] = None,
         enable_otp: bool = False,
+        tos_agreed: bool = False,
         current_language: str = "en",
     ) -> Tuple[Optional[User], Optional[Dict], Optional[str]]:
         """
@@ -212,6 +251,9 @@ class RegistrationService:
             )
             if error:
                 return None, None, error
+
+            if registration.admin and not tos_agreed:
+                return None, None, "You must agree to the Terms of Service"
 
             # Check if username already exists in users table (not in registrations, since this one is expected)
             user_exists = db.query(User).filter(User.username == registration.username).first()
@@ -257,6 +299,12 @@ class RegistrationService:
 
             db.add(user)
             db.flush()
+
+            RegistrationService.create_tos_confirmation(
+                db=db,
+                user_id=user.id,
+                registration=registration,
+            )
 
             # Assign role
             if is_first_user:

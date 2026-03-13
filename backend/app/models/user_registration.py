@@ -2,8 +2,8 @@
 User Registration model
 """
 
-from datetime import datetime
 import uuid
+from datetime import datetime
 
 from sqlalchemy import Column, String, DateTime, UUID, Boolean
 

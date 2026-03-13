@@ -45,6 +45,7 @@ export const authService = {
         password_confirm: data.password_confirm,
         corporate_number: data.corporate_number,
         enable_otp: data.enable_otp || false,
+        tos_agreed: data.tos_agreed || false,
         current_language: data.current_language,
       })
       return response

@@ -117,7 +117,7 @@
 
         <div class="form-section">
           <div class="form-group">
-            <label for="corporateNumber">{{ $t('common.corporateNumber') }} ({{ $t('auth.optional') }})</label>
+            <label for="corporateNumber">{{ $t('common.corporateNumber') }} ({{ $t('common.optional') }})</label>
             <input 
               v-model="form.corporateNumber" 
               type="text" 
@@ -137,6 +137,21 @@
               <span>{{ $t('auth.enableOtp') }}</span>
             </label>
             <small>{{ $t('auth.otpInfo') }}</small>
+          </div>
+        </div>
+
+        <div v-if="registrationData.admin" class="form-section">
+          <div class="checkbox-group">
+            <label for="tosAgreed" class="checkbox-label">
+              <input
+                v-model="form.tosAgreed"
+                type="checkbox"
+                id="tosAgreed"
+              />
+              <span>{{ $t('auth.tosAgree') }}</span>
+            </label>
+            <a href="/terms-of-service" target="_blank">{{ $t('auth.tosLink') }}</a>
+            <small>{{ $t('auth.completeTosAgreement') }}</small>
           </div>
         </div>
 
@@ -164,6 +179,7 @@ export default defineComponent({
       registrationData: {
         username: '',
         email: '',
+        admin: false,
       },
       form: {
         firstName: '',
@@ -172,6 +188,7 @@ export default defineComponent({
         passwordConfirm: '',
         corporateNumber: '',
         enableOtp: false,
+        tosAgreed: false,
       },
       loading: true,
       isLoading: false,
@@ -196,6 +213,7 @@ export default defineComponent({
         this.hasUpperLower &&
         this.hasDigitOrSpecial &&
         this.passwordsMatch &&
+        (!this.registrationData.admin || this.form.tosAgreed) &&
         !this.error
       )
     },
@@ -212,6 +230,7 @@ export default defineComponent({
         this.registrationData = {
           username: response.data.username,
           email: response.data.email,
+          admin: Boolean(response.data.admin),
         }
       } catch (err) {
         this.error = err.response?.data?.detail || this.$t('auth.invalidOrExpiredLink')
@@ -242,17 +261,19 @@ export default defineComponent({
           password_confirm: this.form.passwordConfirm,
           corporate_number: this.form.corporateNumber,
           enable_otp: this.form.enableOtp,
+          tos_agreed: this.form.tosAgreed,
           current_language: this.$i18n.locale,
         })
 
         if (response.data.otp_setup) {
           // If OTP is enabled, redirect to OTP setup page
+          // Use router state to avoid URL-length limits for the base64 QR image
           this.$router.push({
             name: 'OTPSetup',
-            params: {
+            state: {
               qrCode: response.data.otp_setup.qr_code,
               manualEntry: response.data.otp_setup.manual_entry,
-            }
+            },
           })
         } else {
           // Registration successful, redirect to login
@@ -441,7 +462,7 @@ small.error {
   font-weight: 500;
 }
 
-button {
+.btn-primary {
   width: 100%;
   padding: 12px;
   margin-top: 20px;

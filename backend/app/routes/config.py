@@ -3,19 +3,26 @@ Configuration Routes
 """
 
 from fastapi import APIRouter
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models import User
 from config import config
 
 router = APIRouter(prefix="/config", tags=["configuration"])
 
 
 @router.get("")
-async def get_app_config():
+async def get_app_config(db: Session = Depends(get_db)):
     """
     Get application configuration.
     
     Returns public application configuration including app metadata,
     feature flags, and UI settings. Safe to expose to frontend.
     """
+    user_count = db.query(User).count()
+    closed_registration_effective = config.CLOSED_REGISTRATION and user_count > 0
+
     return {
         "appName": config.APP_NAME,
         "appVersion": config.APP_VERSION,
@@ -33,6 +40,8 @@ async def get_app_config():
             "otp": config.FEATURE_OTP_ENABLED,
             "emailVerification": config.FEATURE_EMAIL_VERIFICATION_ENABLED,
             "corporateApprovals": config.FEATURE_CORPORATE_APPROVALS_ENABLED,
+            "closedRegistration": closed_registration_effective,
+            "closedRegistrationConfigured": config.CLOSED_REGISTRATION,
         },
         # Languages
         "languages": {

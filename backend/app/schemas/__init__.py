@@ -29,15 +29,8 @@ class UserRegisterRequest(BaseModel):
 
     username: str = Field(..., min_length=3, max_length=255)
     email: EmailStr
-    tos_agreed: bool = Field(..., description="User must agree to Terms of Service")
+    tos_agreed: bool = Field(..., description="Required for open registration; skipped in closed registration step 1")
     language: str = Field("en", max_length=2)
-
-    @field_validator("tos_agreed")
-    @classmethod
-    def validate_tos_agreed(cls, v):
-        if not v:
-            raise ValueError("You must agree to the Terms of Service")
-        return v
 
 
 class UserCompleteRegistration(BaseModel):
@@ -49,6 +42,7 @@ class UserCompleteRegistration(BaseModel):
     password_confirm: str = Field(..., min_length=10, max_length=60)
     corporate_number: Optional[str] = Field(None, max_length=255)
     enable_otp: bool = Field(False)
+    tos_agreed: bool = Field(False, description="ToS agreement required for admin-created registrations")
     current_language: str = Field("en", max_length=2)
 
     @field_validator("password")

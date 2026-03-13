@@ -191,7 +191,7 @@ CREATE DATABASE nlf_db_test OWNER nlf_user;
 ## API Endpoints
 
 ### Authentication
-- `POST /api/v1/auth/register` - Register new user
+- `POST /api/v1/auth/register` - Register new user. When `CLOSED_REGISTRATION=true` and at least one user already exists, this endpoint is limited to authenticated `support` or `admin` users. The bootstrap case stays open until the first user exists.
 - `POST /api/v1/auth/login` - Login user
 - `POST /api/v1/auth/password-reset` - Request password reset
 - `POST /api/v1/auth/password-reset/confirm/{token}` - Confirm password reset
@@ -228,7 +228,7 @@ CREATE DATABASE nlf_db_test OWNER nlf_user;
 - `GET /uploads/{record_id}/{filename}` - **(Deprecated) Direct file access - use watermarked endpoints**
 
 ### Configuration
-- `GET /api/v1/config` - Get public application configuration
+- `GET /api/v1/config` - Get public application configuration, including `features.closedRegistration` and `features.closedRegistrationConfigured`
 
 ## Environment Variables
 
@@ -250,6 +250,12 @@ SMTP_PASSWORD=your-app-password
 APP_NAME=NLF Database
 COMPANY_NAME=Your Company
 LOGO_URL=/assets/logo.png
+
+# Feature Flags
+FEATURE_OTP_ENABLED=true
+FEATURE_EMAIL_VERIFICATION_ENABLED=true
+FEATURE_CORPORATE_APPROVALS_ENABLED=true
+CLOSED_REGISTRATION=false
 
 # File Upload Configuration
 UPLOAD_DIRECTORY=./uploads

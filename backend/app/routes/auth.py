@@ -3,6 +3,7 @@ Authentication routes for user registration, login, and password management
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 import logging
@@ -24,6 +25,7 @@ from app.schemas import (
 from app.services import UserService, RegistrationService, PasswordResetService
 from app.utils import (
     create_access_token,
+    decode_access_token,
     get_current_user,
     verify_otp,
 )
@@ -31,6 +33,7 @@ from app.utils.email_service import email_service
 from config import config
 
 logger = logging.getLogger(__name__)
+optional_bearer = HTTPBearer(auto_error=False)
 
 router = APIRouter(
     prefix="/auth",
@@ -41,6 +44,7 @@ router = APIRouter(
 @router.post("/register", response_model=dict)
 async def register_user(
     request: UserRegisterRequest,
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_bearer),
     db: Session = Depends(get_db),
 ):
     """
@@ -48,18 +52,46 @@ async def register_user(
     User must agree to Terms of Service
     Sends confirmation email with token link
     """
-    # Check if TOS agreed
-    if not request.tos_agreed:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must agree to the Terms of Service"
-        )
+    closed_registration_effective = RegistrationService.is_closed_registration_effective(db)
+    is_admin_registration = False
+
+    if closed_registration_effective:
+        if not credentials:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Registration is currently limited to support and admin users",
+            )
+
+        user_id = decode_access_token(credentials.credentials)
+        current_user = UserService.get_user_by_id(db, user_id) if user_id else None
+        if not current_user or not current_user.active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired token",
+            )
+
+        user_roles = set(current_user.get_roles())
+        if not ("admin" in user_roles or "support" in user_roles):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Registration is currently limited to support and admin users",
+            )
+
+        is_admin_registration = True
+    else:
+        # Open registration requires ToS agreement in step 1.
+        if not request.tos_agreed:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You must agree to the Terms of Service"
+            )
 
     # Initiate registration and cleanup expired entries
     registration, error = RegistrationService.initiate_registration(
         db=db,
         username=request.username,
-        email=request.email
+        email=request.email,
+        admin=is_admin_registration,
     )
 
     if error:
@@ -86,6 +118,8 @@ async def register_user(
         "username": registration.username,
         "email": registration.email,
         "expires_in_hours": config.REGISTRATION_TOKEN_EXPIRE_HOURS,
+        "admin": registration.admin,
+        "closed_registration": closed_registration_effective,
     }
 
 
@@ -112,6 +146,7 @@ async def get_registration_confirmation(
         "username": registration.username,
         "email": registration.email,
         "expires_at": registration.expires_at.isoformat(),
+        "admin": registration.admin,
     }
 
 
@@ -134,6 +169,7 @@ async def confirm_registration(
             password=request.password,
             corporate_number=request.corporate_number,
             enable_otp=request.enable_otp,
+            tos_agreed=request.tos_agreed,
             current_language=request.current_language,
         )
 

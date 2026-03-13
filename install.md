@@ -364,6 +364,10 @@ Application will be available at: **http://localhost:5173**
 The frontend will automatically fetch configuration from the backend at startup via:
 - `GET http://localhost:8000/api/v1/config`
 
+The public config response also includes registration feature flags:
+- `features.closedRegistrationConfigured`: raw backend setting from `CLOSED_REGISTRATION`
+- `features.closedRegistration`: effective frontend flag. This becomes `true` only after the first user exists, so initial bootstrap registration remains open.
+
 ### 4. Run Frontend Tests
 
 ```bash
@@ -629,6 +633,7 @@ ITEMS_PER_PAGE_OPTIONS = [10, 20, 50]
 FEATURE_OTP_ENABLED = True
 FEATURE_EMAIL_VERIFICATION_ENABLED = True
 FEATURE_CORPORATE_APPROVALS_ENABLED = True
+CLOSED_REGISTRATION = False
 
 # Languages
 DEFAULT_LANGUAGE = "en"
@@ -744,8 +749,11 @@ See the [Alembic Documentation](https://alembic.sqlalchemy.org/) for advanced us
 3. **Register a new account**
    - The first user will automatically receive the **admin** role
    - Subsequent users receive the **user** role
+  - If `CLOSED_REGISTRATION=true`, public self-registration is disabled after the first user exists. New registrations can then only be created by authenticated **support** or **admin** users.
 4. **Check your email** for the verification link
 5. **Complete registration** by setting your password
+  - In open registration mode, Terms of Service are accepted in step 1.
+  - In closed registration mode, Terms of Service are accepted in the confirmation step and stored with the current timestamp.
 
 ### Working with Records
 
