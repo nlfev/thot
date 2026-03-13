@@ -198,7 +198,21 @@
           </div>
           <div class="detail-field">
             <label>{{ $t('admin.corporateNumber') }}</label>
-            <div>{{ selectedUserDetails.corporate_number || '-' }}</div>
+            <div class="corporate-number-editor">
+              <input
+                v-model="editableCorporateNumber"
+                type="text"
+                class="form-control"
+                :placeholder="$t('admin.corporateNumber')"
+              />
+              <button
+                class="btn btn-primary btn-sm"
+                :disabled="savingCorporateNumber || !hasCorporateNumberChanged"
+                @click="saveCorporateNumber"
+              >
+                {{ savingCorporateNumber ? $t('common.loading') : $t('common.save') }}
+              </button>
+            </div>
           </div>
           <div class="detail-field">
             <label>{{ $t('admin.corporateApproved') }}</label>
@@ -262,6 +276,8 @@ export default defineComponent({
       showDetailsModal: false,
       selectedUserDetails: null,
       userRoles: {},
+      editableCorporateNumber: '',
+      savingCorporateNumber: false,
     }
   },
   computed: {
@@ -270,6 +286,15 @@ export default defineComponent({
     },
     canManageRoles() {
       return this.authStore.hasRole('admin') || this.authStore.hasRole('support')
+    },
+    hasCorporateNumberChanged() {
+      if (!this.selectedUserDetails) {
+        return false
+      }
+
+      const currentValue = this.selectedUserDetails.corporate_number || ''
+      const editedValue = (this.editableCorporateNumber || '').trim()
+      return editedValue !== currentValue
     },
   },
   mounted() {
@@ -380,15 +405,50 @@ export default defineComponent({
     async viewUserDetails(userId) {
       try {
         this.selectedUserDetails = await userService.getUserDetail(userId)
+        this.editableCorporateNumber = this.selectedUserDetails.corporate_number || ''
         this.showDetailsModal = true
       } catch (err) {
         this.error = err.message || this.$t('admin.userLoadError')
       }
     },
 
+    async saveCorporateNumber() {
+      if (!this.selectedUserDetails || !this.hasCorporateNumberChanged) {
+        return
+      }
+
+      const corporateNumberValue = (this.editableCorporateNumber || '').trim()
+
+      try {
+        this.savingCorporateNumber = true
+        this.error = null
+
+        const response = await userService.updateUser(this.selectedUserDetails.id, {
+          corporate_number: corporateNumberValue || null,
+        })
+
+        this.selectedUserDetails = {
+          ...this.selectedUserDetails,
+          corporate_number: response.corporate_number,
+        }
+
+        this.successMessage = this.$t('admin.userUpdatedWithName', {
+          username: this.selectedUserDetails.username,
+        })
+
+        await this.loadUsers()
+      } catch (err) {
+        this.error = err.message || this.$t('admin.updateUserError')
+      } finally {
+        this.savingCorporateNumber = false
+      }
+    },
+
     closeDetailsModal() {
       this.showDetailsModal = false
       this.selectedUserDetails = null
+      this.editableCorporateNumber = ''
+      this.savingCorporateNumber = false
     },
 
     async handleRolesUpdated() {
@@ -832,6 +892,20 @@ export default defineComponent({
   background: #f9f9f9;
   border-radius: 4px;
   border-left: 3px solid #007bff;
+}
+
+.corporate-number-editor {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  background: #f9f9f9;
+  border-radius: 4px;
+  border-left: 3px solid #007bff;
+  padding: 0.75rem;
+}
+
+.corporate-number-editor .form-control {
+  flex: 1;
 }
 
 @media (max-width: 768px) {
