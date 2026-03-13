@@ -158,7 +158,6 @@ export default {
     },
     canManagePages() {
       return this.authStore.hasRole('admin') ||
-             this.authStore.hasRole('user_record') ||
              this.authStore.hasRole('user_scan') ||
              this.authStore.hasRole('user_page')
     },

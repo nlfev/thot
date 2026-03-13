@@ -10,6 +10,7 @@
           {{ $t('pages.openPdfViewer') }}
         </router-link>
         <router-link
+          v-if="canEditPage"
           :to="`/records/${recordId}/pages/${pageId}/edit`"
           class="btn btn-primary"
         >
@@ -154,11 +155,11 @@ import { useAuthStore } from '@/stores/auth'
 
 export default {
   name: 'PageDetail',
-    setup() {
-      return {
-        authStore: useAuthStore(),
-      }
-    },
+  setup() {
+    return {
+      authStore: useAuthStore(),
+    }
+  },
   data() {
     return {
       page: null,
@@ -172,18 +173,20 @@ export default {
     },
     pageId() {
       return this.$route.params.pageId
-        canManagePages() {
-          return this.authStore.hasRole('admin') || 
-                 this.authStore.hasRole('user_record') || 
-                 this.authStore.hasRole('user_scan') || 
-                 this.authStore.hasRole('user_page')
-        },
-        backToListUrl() {
-          if (this.canManagePages) {
-            return `/records/${this.recordId}/pages`
-          }
-          return `/records/${this.recordId}/pages-gallery`
-        },
+    },
+    canEditPage() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_page')
+    },
+    canManagePages() {
+      return this.authStore.hasRole('admin')
+        || this.authStore.hasRole('user_scan')
+        || this.authStore.hasRole('user_page')
+    },
+    backToListUrl() {
+      if (this.canManagePages) {
+        return `/records/${this.recordId}/pages`
+      }
+      return `/records/${this.recordId}/pages-gallery`
     },
   },
   mounted() {

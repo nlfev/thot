@@ -5,6 +5,7 @@ Records routes for CRUD operations
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import Response
@@ -23,6 +24,26 @@ router = APIRouter(
     prefix="/records",
     tags=["records"],
 )
+
+
+def ensure_record_write_permission(current_user):
+    """Only admin and user_record may create/update/delete records."""
+    if not (current_user.has_role("admin") or current_user.has_role("user_record")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Only admin or user_record can modify records.",
+        )
+
+
+def parse_uuid_value(value, field_name: str) -> UUID:
+    """Normalize UUID values from JSON payloads before SQLAlchemy uses them."""
+    try:
+        return value if isinstance(value, UUID) else UUID(str(value))
+    except (TypeError, ValueError, AttributeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid {field_name}",
+        )
 
 
 def process_keywords(db: Session, keywords_string: str, keyword_model):
@@ -199,7 +220,8 @@ async def get_record(
     """
     Get a specific record by ID
     """
-    record = db.query(Record).filter(Record.id == record_id, Record.active == True).first()
+    parsed_record_id = parse_uuid_value(record_id, "record_id")
+    record = db.query(Record).filter(Record.id == parsed_record_id, Record.active == True).first()
 
     if not record:
         raise HTTPException(
@@ -237,7 +259,8 @@ async def download_combined_pdf(
     Each page's PDF is watermarked with user information before combining.
     """
     # Get the record
-    record = db.query(Record).filter(Record.id == record_id, Record.active == True).first()
+    parsed_record_id = parse_uuid_value(record_id, "record_id")
+    record = db.query(Record).filter(Record.id == parsed_record_id, Record.active == True).first()
     
     if not record:
         raise HTTPException(
@@ -350,8 +373,13 @@ async def create_record(
             )
     
     """
+    ensure_record_write_permission(current_user)
+
+    restriction_id = parse_uuid_value(data.get("restriction_id"), "restriction_id")
+    workstatus_id = parse_uuid_value(data.get("workstatus_id"), "workstatus_id")
+
     # Validate that restriction exists
-    restriction = db.query(Restriction).filter(Restriction.id == data.get("restriction_id")).first()
+    restriction = db.query(Restriction).filter(Restriction.id == restriction_id).first()
     if not restriction:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -359,7 +387,7 @@ async def create_record(
         )
 
     # Validate that workstatus exists
-    workstatus = db.query(WorkStatus).filter(WorkStatus.id == data.get("workstatus_id")).first()
+    workstatus = db.query(WorkStatus).filter(WorkStatus.id == workstatus_id).first()
     if not workstatus:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -372,8 +400,8 @@ async def create_record(
             description=data.get("description"),
             signature=data.get("signature"),
             comment=data.get("comment"),
-            restriction_id=data.get("restriction_id"),
-            workstatus_id=data.get("workstatus_id"),
+            restriction_id=restriction_id,
+            workstatus_id=workstatus_id,
             created_by=current_user.id,
         )
 
@@ -431,7 +459,10 @@ async def update_record(
             )
     
     """
-    record = db.query(Record).filter(Record.id == record_id).first()
+    ensure_record_write_permission(current_user)
+
+    parsed_record_id = parse_uuid_value(record_id, "record_id")
+    record = db.query(Record).filter(Record.id == parsed_record_id).first()
 
     if not record:
         raise HTTPException(
@@ -439,18 +470,26 @@ async def update_record(
             detail="Record not found"
         )
 
+    restriction_id = record.restriction_id
+    if "restriction_id" in data and data.get("restriction_id") is not None:
+        restriction_id = parse_uuid_value(data.get("restriction_id"), "restriction_id")
+
     # Validate restriction if changed
     if "restriction_id" in data:
-        restriction = db.query(Restriction).filter(Restriction.id == data.get("restriction_id")).first()
+        restriction = db.query(Restriction).filter(Restriction.id == restriction_id).first()
         if not restriction:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Restriction not found"
             )
 
+    workstatus_id = record.workstatus_id
+    if "workstatus_id" in data and data.get("workstatus_id") is not None:
+        workstatus_id = parse_uuid_value(data.get("workstatus_id"), "workstatus_id")
+
     # Validate workstatus if changed
     if "workstatus_id" in data:
-        workstatus = db.query(WorkStatus).filter(WorkStatus.id == data.get("workstatus_id")).first()
+        workstatus = db.query(WorkStatus).filter(WorkStatus.id == workstatus_id).first()
         if not workstatus:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -463,8 +502,8 @@ async def update_record(
         record.description = data.get("description", record.description)
         record.signature = data.get("signature", record.signature)
         record.comment = data.get("comment", record.comment)
-        record.restriction_id = data.get("restriction_id", record.restriction_id)
-        record.workstatus_id = data.get("workstatus_id", record.workstatus_id)
+        record.restriction_id = restriction_id
+        record.workstatus_id = workstatus_id
         record.last_modified_by = current_user.id
 
         # Update keywords_names
@@ -509,7 +548,10 @@ async def delete_record(
     """
     Delete a record (soft delete)
     """
-    record = db.query(Record).filter(Record.id == record_id).first()
+    ensure_record_write_permission(current_user)
+
+    parsed_record_id = parse_uuid_value(record_id, "record_id")
+    record = db.query(Record).filter(Record.id == parsed_record_id).first()
 
     if not record:
         raise HTTPException(

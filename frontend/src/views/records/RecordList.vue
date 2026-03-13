@@ -137,8 +137,8 @@
               <router-link :to="getPagesUrl(record.id)" class="btn btn-sm btn-secondary">
                 {{ $t('pages.title') }}
               </router-link>
-              <router-link v-if="canEditRecord" :to="`/records/${record.id}`" class="btn btn-sm btn-info">
-                {{ $t('common.edit') }}
+              <router-link :to="`/records/${record.id}`" class="btn btn-sm btn-info">
+                {{ canEditRecord ? $t('common.edit') : $t('common.view') }}
               </router-link>
               <button v-if="canEditRecord" class="btn btn-sm btn-danger" @click="deleteRecord(record.id)">
                 {{ $t('common.delete') }}

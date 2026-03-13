@@ -1,7 +1,7 @@
 <template>
   <div class="record-form-container">
     <div class="form-header">
-      <h1>{{ isEditMode ? $t('records.editRecord') : $t('records.createRecord') }}</h1>
+      <h1>{{ isReadOnlyMode ? $t('common.view') : (isEditMode ? $t('records.editRecord') : $t('records.createRecord')) }}</h1>
       <div class="header-actions">
         <router-link v-if="isEditMode" :to="`/records/${recordId}/pages-gallery`" class="btn btn-primary">
           {{ $t('pages.galleryTitle') }}
@@ -40,6 +40,7 @@
           type="text"
           class="form-control"
           :placeholder="$t('records.titlePlaceholder')"
+          :readonly="isReadOnlyMode"
           required
         />
       </div>
@@ -52,6 +53,7 @@
           type="text"
           class="form-control"
           :placeholder="$t('records.signaturePlaceholder')"
+          :readonly="isReadOnlyMode"
         />
       </div>
 
@@ -62,6 +64,7 @@
           v-model="form.description"
           class="form-control"
           :placeholder="$t('records.descriptionPlaceholder')"
+          :readonly="isReadOnlyMode"
           rows="4"
         />
       </div>
@@ -73,6 +76,7 @@
           v-model="form.comment"
           class="form-control"
           :placeholder="$t('records.commentPlaceholder')"
+          :readonly="isReadOnlyMode"
           rows="3"
         />
       </div>
@@ -85,6 +89,7 @@
           type="text"
           class="form-control"
           :placeholder="$t('records.keywordsNamesPlaceholder')"
+          :readonly="isReadOnlyMode"
         />
         <small class="form-text">{{ $t('records.keywordsHelp') }}</small>
       </div>
@@ -97,6 +102,7 @@
           type="text"
           class="form-control"
           :placeholder="$t('records.keywordsLocationsPlaceholder')"
+          :readonly="isReadOnlyMode"
         />
         <small class="form-text">{{ $t('records.keywordsHelp') }}</small>
       </div>
@@ -108,6 +114,7 @@
             id="restriction"
             v-model="form.restriction_id"
             class="form-control"
+            :disabled="isReadOnlyMode"
             required
           >
             <option value="">{{ $t('records.selectRestriction') }}</option>
@@ -123,6 +130,7 @@
             id="workstatus"
             v-model="form.workstatus_id"
             class="form-control"
+            :disabled="isReadOnlyMode"
             required
           >
             <option value="">{{ $t('records.selectWorkStatus') }}</option>
@@ -134,11 +142,11 @@
       </div>
 
       <div class="form-actions">
-        <button type="submit" class="btn btn-primary" :disabled="submitting">
+        <button v-if="canEditRecord" type="submit" class="btn btn-primary" :disabled="submitting">
           {{ submitting ? $t('common.saving') : $t('common.save') }}
         </button>
         <router-link to="/records" class="btn btn-secondary">
-          {{ $t('common.cancel') }}
+          {{ canEditRecord ? $t('common.cancel') : $t('common.back') }}
         </router-link>
       </div>
     </form>
@@ -148,9 +156,14 @@
 <script>
 import { defineComponent } from 'vue'
 import { recordService } from '@/services/record'
+import { useAuthStore } from '@/stores/auth'
 
 export default defineComponent({
   name: 'RecordForm',
+  setup() {
+    const authStore = useAuthStore()
+    return { authStore }
+  },
   data() {
     return {
       form: {
@@ -177,6 +190,12 @@ export default defineComponent({
     },
     recordId() {
       return this.$route.params.id
+    },
+    canEditRecord() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_record')
+    },
+    isReadOnlyMode() {
+      return this.isEditMode && !this.canEditRecord
     },
   },
   mounted() {
@@ -242,6 +261,10 @@ export default defineComponent({
     },
 
     async handleSubmit() {
+      if (!this.canEditRecord) {
+        return
+      }
+
       this.submitting = true
       this.error = null
       this.successMessage = null

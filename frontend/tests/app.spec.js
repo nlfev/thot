@@ -35,9 +35,15 @@ describe('App Store', () => {
     expect(localStorage.getItem('darkMode')).toBe('true')
   })
 
-  it('should set items per page', () => {
+  it('should expose default items per page', () => {
     const store = useAppStore()
-    store.setItemsPerPage(20)
+    expect(store.itemsPerPage).toBe(10)
+  })
+
+  it('should derive items per page from app config', () => {
+    const store = useAppStore()
+    store.appConfig = { itemsPerPageDefault: 20 }
+
     expect(store.itemsPerPage).toBe(20)
   })
 

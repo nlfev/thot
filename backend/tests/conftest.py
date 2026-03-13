@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 SQLiteTypeCompiler.visit_UUID = lambda self, type_, **kw: "CHAR(32)"
 
 from app.database import Base, get_db
+import app.database as app_database
 from app.main import app
 from fastapi.testclient import TestClient
 
@@ -57,6 +58,11 @@ def client(db):
         finally:
             pass
 
+    original_get_db = app_database.get_db
+    app_database.get_db = override_get_db
     app.dependency_overrides[get_db] = override_get_db
-    yield TestClient(app, base_url="http://localhost", headers={"Host": "localhost"})
-    app.dependency_overrides.clear()
+    try:
+        yield TestClient(app, base_url="http://localhost", headers={"Host": "localhost"})
+    finally:
+        app_database.get_db = original_get_db
+        app.dependency_overrides.clear()

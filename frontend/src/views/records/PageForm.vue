@@ -152,13 +152,13 @@ export default {
       return this.$route.params.pageId
     },
     canCreatePage() {
-      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_record')
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_scan')
     },
     canEditPage() {
-      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_record')
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_page')
     },
     canManageFile() {
-      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_record')
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_scan')
     },
     isUploadOnlyMode() {
       return this.isEditMode && !this.canEditPage && this.canManageFile
@@ -235,7 +235,7 @@ export default {
         }
 
         if (this.isEditMode) {
-          // user_record can upload/remove files on existing pages but cannot edit metadata fields
+          // user_scan can upload/remove files on existing pages but cannot edit metadata fields
           if (this.isUploadOnlyMode) {
             const page = await pageService.getPage(this.pageId)
             payload.name = page.name

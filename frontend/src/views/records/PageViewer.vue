@@ -4,10 +4,11 @@
       <h1>{{ $t('pages.pdfViewer') }}</h1>
       <div class="header-actions">
         <router-link
+          v-if="canEditPage || canManageFile"
           :to="`/records/${recordId}/pages/${pageId}/edit`"
           class="btn btn-primary"
         >
-          {{ $t('common.edit') }}
+          {{ canEditPage ? $t('common.edit') : $t('pages.uploadFile') }}
         </router-link>
         <router-link
           :to="backToListUrl"
@@ -214,18 +215,23 @@ export default {
     },
     pdfViewerUrl() {
       return this.pdfBlobUrl
-        canManagePages() {
-          return this.authStore.hasRole('admin') || 
-                 this.authStore.hasRole('user_record') || 
-                 this.authStore.hasRole('user_scan') || 
-                 this.authStore.hasRole('user_page')
-        },
-        backToListUrl() {
-          if (this.canManagePages) {
-            return `/records/${this.recordId}/pages`
-          }
-          return `/records/${this.recordId}/pages-gallery`
-        },
+    },
+    canEditPage() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_page')
+    },
+    canManageFile() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_scan')
+    },
+    canManagePages() {
+      return this.authStore.hasRole('admin')
+        || this.authStore.hasRole('user_scan')
+        || this.authStore.hasRole('user_page')
+    },
+    backToListUrl() {
+      if (this.canManagePages) {
+        return `/records/${this.recordId}/pages`
+      }
+      return `/records/${this.recordId}/pages-gallery`
     },
   },
   mounted() {
