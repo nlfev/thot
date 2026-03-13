@@ -1,12 +1,21 @@
 <template>
   <div class="view-wrapper">
     <div class="view-header">
-      <h1>{{ $t('common.imprint') }}</h1>
+      <h1>{{ $t('common.termsOfService') }}</h1>
     </div>
     <div class="view-content card">
-      <div v-if="loading">{{ $t('common.loading') }}</div>
-      <div v-else-if="error">{{ error }}</div>
-      <article v-else class="legal-html" v-html="htmlContent"></article>
+      <div v-if="loading">
+        {{ $t('common.loading') }}
+      </div>
+      <div v-else-if="error">
+        {{ error }}
+      </div>
+      <iframe
+        v-else
+        class="legal-frame"
+        :srcdoc="htmlContent"
+        :title="$t('common.termsOfService')"
+      />
     </div>
   </div>
 </template>
@@ -16,7 +25,7 @@ import { defineComponent } from 'vue'
 import { fetchLegalHtml, LEGAL_DOCUMENT_TYPES } from '@/services/legal'
 
 export default defineComponent({
-  name: 'Imprint',
+  name: 'TermsOfService',
   data() {
     return {
       htmlContent: '',
@@ -38,7 +47,7 @@ export default defineComponent({
       this.error = ''
       try {
         const locale = this.$i18n.locale?.value || this.$i18n.locale || 'en'
-        this.htmlContent = await fetchLegalHtml(LEGAL_DOCUMENT_TYPES.imprint, locale)
+        this.htmlContent = await fetchLegalHtml(LEGAL_DOCUMENT_TYPES.termsOfService, locale)
       } catch (error) {
         this.error = error?.response?.data?.detail || this.$t('common.error')
         this.htmlContent = ''
@@ -51,14 +60,9 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.legal-html :deep(h1),
-.legal-html :deep(h2),
-.legal-html :deep(h3) {
-  margin-top: 1rem;
-}
-
-.legal-html :deep(p),
-.legal-html :deep(li) {
-  line-height: 1.5;
+.legal-frame {
+  width: 100%;
+  min-height: 60vh;
+  border: 0;
 }
 </style>

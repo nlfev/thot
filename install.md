@@ -140,6 +140,9 @@ SMTP_FROM_NAME=NLF Database
 # Frontend URL
 FRONTEND_URL=http://localhost:3000
 
+# URL shown in Swagger/OpenAPI metadata
+API_TERMS_OF_SERVICE_URL=http://localhost:3000/terms-of-service
+
 # CORS
 CORS_ORIGINS=http://localhost:3000
 
@@ -151,11 +154,37 @@ MAX_UPLOAD_SIZE=52428800
 # Path to logo image to include in PDF watermarks
 # WATERMARK_IMAGE_PATH=./assets/logo.png
 
+# Legal content HTML (language-specific, not committed to git)
+LEGAL_CONTENT_DIRECTORY=./legal_content
+LEGAL_IMPRINT_FILENAME_TEMPLATE=imprint.{lang}.html
+LEGAL_DATA_PROTECTION_FILENAME_TEMPLATE=data-protection.{lang}.html
+LEGAL_TERMS_OF_SERVICE_FILENAME_TEMPLATE=terms-of-service.{lang}.html
+
 # Logging
 LOG_LEVEL=INFO
 ```
 
 ### 5. (Optional) Configure Logo and Favicons
+
+### 5a. Provide Legal HTML Content (Imprint, Data Protection, Terms of Service)
+
+Legal pages are loaded from separate HTML files per language and are intentionally not part of the repository.
+
+Frontend behavior:
+- Imprint and Data Protection are linked in the information section.
+- Terms of Service is reachable directly via `/terms-of-service` and through registration / Swagger links, but is intentionally not listed in the navigation.
+
+1. Create runtime HTML files in the configured directory (default `backend/legal_content`):
+  - `imprint.en.html`, `imprint.de.html`
+  - `data-protection.en.html`, `data-protection.de.html`
+  - `terms-of-service.en.html`, `terms-of-service.de.html`
+2. Keep placeholders in git (already included in `backend/legal_content/*.placeholder`).
+3. Verify endpoints:
+  - `GET /api/v1/config/legal/imprint?lang=en`
+  - `GET /api/v1/config/legal/data-protection?lang=de`
+  - `GET /api/v1/config/legal/terms-of-service?lang=en`
+
+Swagger/OpenAPI reads the Terms of Service URL from `API_TERMS_OF_SERVICE_URL`.
 
 #### Application Logo (Header & Watermarks)
 

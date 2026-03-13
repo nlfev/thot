@@ -49,4 +49,9 @@ async def get_app_config(db: Session = Depends(get_db)):
             "de": "Deutsch",
         },
         "defaultLanguage": config.DEFAULT_LANGUAGE,
+        "legalContent": {
+            "imprintUrl": "/api/v1/config/legal/imprint",
+            "dataProtectionUrl": "/api/v1/config/legal/data-protection",
+            "termsOfServiceUrl": "/api/v1/config/legal/terms-of-service",
+        },
     }

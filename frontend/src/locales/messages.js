@@ -43,6 +43,7 @@ export const messages = {
       about: 'About',
       imprint: 'Imprint',
       dataProtection: 'Data Protection',
+      termsOfService: 'Terms of Service',
       contact: 'Contact',
       support: 'Support',
       copyright: '© {year} {company} AGPL-3.0-or-later.',
@@ -86,6 +87,7 @@ export const messages = {
       about: 'About',
       imprint: 'Imprint',
       dataProtection: 'Data Protection',
+      termsOfService: 'Terms of Service',
     },
 
     // Authentication
@@ -499,6 +501,7 @@ export const messages = {
       about: 'Über uns',
       imprint: 'Impressum',
       dataProtection: 'Datenschutz',
+      termsOfService: 'Nutzungsbedingungen',
       contact: 'Kontakt',
       support: 'Unterstützung',
       copyright: '© {year} {company} AGPL-3.0-or-later.',
@@ -542,6 +545,7 @@ export const messages = {
       about: 'Über uns',
       imprint: 'Impressum',
       dataProtection: 'Datenschutz',
+      termsOfService: 'Nutzungsbedingungen',
     },
 
     // Authentication

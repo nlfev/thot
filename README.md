@@ -33,6 +33,7 @@ Professional Database Management System with Vue.js Frontend and FastAPI Backend
 - ✅ RESTful API with FastAPI
 - ✅ Vue.js 3 Frontend with Pinia Store
 - ✅ Dynamic Logo and Favicon Loading from Backend
+- ✅ External Legal HTML Content (Imprint, Data Protection, Terms of Service per language)
 - ✅ Environment-based Configuration (Dev/Production)
 - ✅ Comprehensive Unit Tests
 
@@ -86,6 +87,10 @@ Frontend runs at: `http://localhost:3000`
 - [Installation & Setup Guide](install.md)
 - [API Documentation](http://localhost:8000/docs) (Swagger UI)
 - [API ReDoc](http://localhost:8000/redoc)
+
+Legal pages:
+- Imprint and Data Protection are available in the frontend information area.
+- Terms of Service remains available at `/terms-of-service` and via registration / Swagger links, but is intentionally not shown in the navigation.
 
 ## API Quick Guide (Swagger)
 

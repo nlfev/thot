@@ -80,6 +80,10 @@ class Config:
 
     # Frontend
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    API_TERMS_OF_SERVICE_URL = os.getenv(
+        "API_TERMS_OF_SERVICE_URL",
+        f"{FRONTEND_URL.rstrip('/')}/terms-of-service",
+    )
 
     # Languages
     AVAILABLE_LANGUAGES = ["en", "de"]
@@ -108,6 +112,24 @@ class Config:
     ALLOWED_FILE_EXTENSIONS = [".pdf"]
     WATERMARK_IMAGE_PATH = os.getenv("WATERMARK_IMAGE_PATH", "")
 
+    # Legal Content (HTML files are language-specific and loaded from filesystem)
+    _DEFAULT_LEGAL_CONTENT_DIRECTORY = Path(__file__).parent / "legal_content"
+    LEGAL_CONTENT_DIRECTORY = Path(
+        os.getenv("LEGAL_CONTENT_DIRECTORY", str(_DEFAULT_LEGAL_CONTENT_DIRECTORY))
+    ).resolve()
+    LEGAL_IMPRINT_FILENAME_TEMPLATE = os.getenv(
+        "LEGAL_IMPRINT_FILENAME_TEMPLATE",
+        "imprint.{lang}.html",
+    )
+    LEGAL_DATA_PROTECTION_FILENAME_TEMPLATE = os.getenv(
+        "LEGAL_DATA_PROTECTION_FILENAME_TEMPLATE",
+        "data-protection.{lang}.html",
+    )
+    LEGAL_TERMS_OF_SERVICE_FILENAME_TEMPLATE = os.getenv(
+        "LEGAL_TERMS_OF_SERVICE_FILENAME_TEMPLATE",
+        "terms-of-service.{lang}.html",
+    )
+
     @classmethod
     def get_watermark_image_path(cls) -> Optional[Path]:
         """Return configured watermark image path (or None when disabled)."""
@@ -124,6 +146,70 @@ class Config:
     def ensure_upload_directory(cls):
         """Ensure upload directory exists"""
         cls.UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
+    @classmethod
+    def get_legal_file_path(cls, document_type: str, language: str) -> Path:
+        """Build absolute path for a language-specific legal HTML file."""
+        normalized_lang = (
+            language if language in cls.AVAILABLE_LANGUAGES else cls.DEFAULT_LANGUAGE
+        )
+        templates = {
+            "imprint": cls.LEGAL_IMPRINT_FILENAME_TEMPLATE,
+            "data-protection": cls.LEGAL_DATA_PROTECTION_FILENAME_TEMPLATE,
+            "terms-of-service": cls.LEGAL_TERMS_OF_SERVICE_FILENAME_TEMPLATE,
+        }
+        if document_type not in templates:
+            raise ValueError(f"Unsupported legal document type: {document_type}")
+
+        filename = templates[document_type].format(lang=normalized_lang)
+        return (cls.LEGAL_CONTENT_DIRECTORY / filename).resolve()
+
+    @classmethod
+    def resolve_legal_file_path(cls, document_type: str, language: str) -> Path:
+        """Resolve legal file path with fallbacks.
+
+        Fallback order:
+        1) requested language
+        2) default language
+        3) language-agnostic filename (e.g., data-protection.html)
+        """
+        normalized_lang = (
+            language if language in cls.AVAILABLE_LANGUAGES else cls.DEFAULT_LANGUAGE
+        )
+
+        templates = {
+            "imprint": cls.LEGAL_IMPRINT_FILENAME_TEMPLATE,
+            "data-protection": cls.LEGAL_DATA_PROTECTION_FILENAME_TEMPLATE,
+            "terms-of-service": cls.LEGAL_TERMS_OF_SERVICE_FILENAME_TEMPLATE,
+        }
+        if document_type not in templates:
+            raise ValueError(f"Unsupported legal document type: {document_type}")
+
+        template = templates[document_type]
+        candidate_filenames = [template.format(lang=normalized_lang)]
+
+        default_lang = cls.DEFAULT_LANGUAGE
+        if default_lang != normalized_lang:
+            candidate_filenames.append(template.format(lang=default_lang))
+
+        if "{lang}" in template:
+            language_agnostic = (
+                template.replace(".{lang}", "")
+                .replace("{lang}.", "")
+                .replace("{lang}", "")
+            )
+            candidate_filenames.append(language_agnostic)
+
+        # Keep order, remove duplicates.
+        unique_candidates = list(dict.fromkeys(candidate_filenames))
+
+        for filename in unique_candidates:
+            candidate_path = (cls.LEGAL_CONTENT_DIRECTORY / filename).resolve()
+            if candidate_path.exists() and candidate_path.is_file():
+                return candidate_path
+
+        # Return primary candidate for consistent error messaging by caller.
+        return (cls.LEGAL_CONTENT_DIRECTORY / unique_candidates[0]).resolve()
 
 
 class DevelopmentConfig(Config):

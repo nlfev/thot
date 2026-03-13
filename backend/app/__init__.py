@@ -24,6 +24,7 @@ app = FastAPI(
     title=config.APP_NAME,
     version=config.APP_VERSION,
     description="RESTful API for NLF Database Management",
+    terms_of_service=config.API_TERMS_OF_SERVICE_URL,
 )
 
 # Add CORS middleware

@@ -4,15 +4,61 @@
       <h1>{{ $t('common.dataProtection') }}</h1>
     </div>
     <div class="view-content card">
-      <p>Data protection information will be placed here.</p>
+      <div v-if="loading">{{ $t('common.loading') }}</div>
+      <div v-else-if="error">{{ error }}</div>
+      <article v-else class="legal-html" v-html="htmlContent"></article>
     </div>
   </div>
 </template>
 
 <script>
 import { defineComponent } from 'vue'
+import { fetchLegalHtml, LEGAL_DOCUMENT_TYPES } from '@/services/legal'
 
 export default defineComponent({
   name: 'DataProtection',
+  data() {
+    return {
+      htmlContent: '',
+      loading: true,
+      error: '',
+    }
+  },
+  watch: {
+    '$i18n.locale': {
+      handler() {
+        this.loadLegalContent()
+      },
+      immediate: true,
+    },
+  },
+  methods: {
+    async loadLegalContent() {
+      this.loading = true
+      this.error = ''
+      try {
+        const locale = this.$i18n.locale?.value || this.$i18n.locale || 'en'
+        this.htmlContent = await fetchLegalHtml(LEGAL_DOCUMENT_TYPES.dataProtection, locale)
+      } catch (error) {
+        this.error = error?.response?.data?.detail || this.$t('common.error')
+        this.htmlContent = ''
+      } finally {
+        this.loading = false
+      }
+    },
+  },
 })
 </script>
+
+<style scoped>
+.legal-html :deep(h1),
+.legal-html :deep(h2),
+.legal-html :deep(h3) {
+  margin-top: 1rem;
+}
+
+.legal-html :deep(p),
+.legal-html :deep(li) {
+  line-height: 1.5;
+}
+</style>

@@ -2,6 +2,7 @@
 
 from datetime import datetime, timedelta, timezone
 import uuid
+from pathlib import Path
 
 from config import config
 from app.models import Role, User, UserConfirmation, UserConfirmations, UserRegistration
@@ -43,6 +44,27 @@ def test_public_config_keeps_bootstrap_registration_open(client, monkeypatch):
     payload = response.json()
     assert payload["features"]["closedRegistrationConfigured"] is True
     assert payload["features"]["closedRegistration"] is False
+    assert payload["legalContent"]["termsOfServiceUrl"] == "/api/v1/config/legal/terms-of-service"
+
+
+def test_legal_content_endpoint_reads_language_specific_html(client, monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(type(config), "LEGAL_CONTENT_DIRECTORY", tmp_path.resolve())
+
+    imprint_file = tmp_path / "imprint.de.html"
+    imprint_file.write_text("<h1>Impressum Test</h1>", encoding="utf-8")
+
+    response = client.get("/api/v1/config/legal/imprint?lang=de", headers=_host_headers())
+
+    assert response.status_code == 200
+    assert "Impressum Test" in response.text
+
+
+def test_legal_content_endpoint_returns_404_when_file_missing(client, monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(type(config), "LEGAL_CONTENT_DIRECTORY", tmp_path.resolve())
+
+    response = client.get("/api/v1/config/legal/terms-of-service?lang=en", headers=_host_headers())
+
+    assert response.status_code == 404
 
 
 def test_bootstrap_registration_still_requires_tos(client, monkeypatch):

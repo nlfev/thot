@@ -81,3 +81,4 @@ Thumbs.db
 /backend/assets/favicons
 /backend/assets/logo.png
 /backend/assets/logo.zip
+/backend/legal_content/*.html
