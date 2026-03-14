@@ -864,12 +864,19 @@ From the pages list, you can:
 
 PDF files are stored in the backend filesystem:
 ```
-backend/uploads/{record_id}/{page_id}.pdf
+backend/uploads/{signature_folder}/Seite_yyyyMMdd_hhmmss.pdf
+backend/uploads/{signature_folder}/Seite_1.pdf
 ```
+
+Storage rules:
+- The base directory is configured with `UPLOAD_DIRECTORY` in the backend `.env`.
+- The maximum upload size is configured with `MAX_UPLOAD_SIZE` in bytes. The default `52428800` equals 50 MB.
+- The folder name is built from the record signature after trimming and replacing whitespace with `_`.
+- Multi-page PDFs are split into individual PDFs and create separate page entries with filenames such as `Seite_1.pdf`, `Seite_2.pdf`, etc.
 
 They are accessible via:
 ```
-http://localhost:8000/uploads/{record_id}/{page_id}.pdf
+http://localhost:8000/uploads/{signature_folder}/{filename}.pdf
 ```
 
 > **Note:** The overview page shows only text information. To view the actual PDF, you would need to implement a separate viewer page (not included in basic setup).

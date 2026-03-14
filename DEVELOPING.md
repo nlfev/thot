@@ -205,8 +205,11 @@ const newPage = await pageService.createPage(formData)
 Files are stored in the filesystem:
 ```
 backend/uploads/
-  └── {record_id}/
-      └── {page_id}.pdf
+  └── {record_signature_sanitized}/
+      ├── Seite_yyyyMMdd_hhmmss.pdf
+      ├── Seite_1.pdf
+      ├── Seite_2.pdf
+      └── ...
 ```
 
 Configuration in `.env`:
@@ -215,7 +218,14 @@ UPLOAD_DIRECTORY=./uploads
 MAX_UPLOAD_SIZE=52428800  # 50MB in bytes
 ```
 
-The `location_file` field in the database stores the relative path: `{record_id}/{page_id}.pdf`
+Behavior:
+- `UPLOAD_DIRECTORY` defines the base directory for stored PDFs.
+- `MAX_UPLOAD_SIZE` defines the maximum allowed upload size in bytes and is configurable via `.env`.
+- The storage folder is created from the record signature after trimming and replacing whitespace with `_`.
+- Single-page uploads are stored as `Seite_yyyyMMdd_hhmmss.pdf`.
+- Multi-page uploads are split into individual PDFs. Each split page creates its own page entry and is stored as `Seite_1.pdf`, `Seite_2.pdf`, etc.
+
+The `location_file` field in the database stores the relative path, for example: `{record_signature_sanitized}/Seite_1.pdf`
 
 #### Accessing Uploaded Files
 

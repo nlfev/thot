@@ -88,6 +88,13 @@
         <small class="form-text">
           {{ selectedFileName || $t('pages.noFileSelected') }}
         </small>
+        <small v-if="!isEditMode" class="form-text text-info">
+          {{ $t('pages.uploadMultiPageHint') }}
+        </small>
+        <small v-if="isEditMode && !filePageError" class="form-text text-warning">
+          {{ $t('pages.uploadSinglePageOnly') }}
+        </small>
+        <small v-if="filePageError" class="form-text text-danger">{{ filePageError }}</small>
         <small v-if="isEditMode" class="form-text">
           {{ $t('pages.currentFile') }}: {{ hasCurrentFile ? $t('common.yes') : $t('common.no') }}
         </small>
@@ -125,6 +132,7 @@ export default {
       loading: false,
       submitting: false,
       error: null,
+      filePageError: null,
       restrictions: [],
       workstatuses: [],
       selectedFile: null,
@@ -213,10 +221,37 @@ export default {
       const file = event.target.files?.[0]
       this.selectedFile = file || null
       this.selectedFileName = file?.name || ''
+      this.filePageError = null
+
+      if (file && this.isEditMode) {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          try {
+            const bytes = new Uint8Array(e.target.result)
+            const text = new TextDecoder('latin1').decode(bytes)
+            // Count individual page objects: /Type /Page (not /Pages)
+            const matches = text.match(/\/Type\s*\/Page[^s]/g)
+            const pageCount = matches ? matches.length : 0
+            if (pageCount > 1) {
+              this.filePageError = this.$t('pages.uploadSinglePageError')
+              this.selectedFile = null
+              this.selectedFileName = ''
+              event.target.value = ''
+            }
+          } catch {
+            // If we can't parse, let the backend validate
+          }
+        }
+        reader.readAsArrayBuffer(file)
+      }
     },
     async handleSubmit() {
       if ((!this.isEditMode && !this.canCreatePage) || (this.isEditMode && !this.canEditPage && !this.canManageFile)) {
         this.error = this.$t('messages.unauthorised')
+        return
+      }
+
+      if (this.filePageError) {
         return
       }
 
@@ -305,6 +340,18 @@ export default {
   margin-top: 4px;
   color: #666;
   font-size: 12px;
+}
+
+.form-text.text-info {
+  color: #0d6efd;
+}
+
+.form-text.text-warning {
+  color: #856404;
+}
+
+.form-text.text-danger {
+  color: #dc3545;
 }
 
 .checkbox-label {

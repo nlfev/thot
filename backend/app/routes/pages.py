@@ -5,10 +5,13 @@ Pages API routes
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
+from io import BytesIO
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
+from pypdf import PdfReader, PdfWriter
 
 from app.database import get_db
 from app.models.page import Page
@@ -67,30 +70,122 @@ def _build_signature_folder_name(record_signature: Optional[str], record_id: str
     return str(record_id)
 
 
-def save_uploaded_file(file: UploadFile, record_signature: Optional[str], record_id: str) -> str:
-    """Save uploaded file to disk and return relative path"""
+def _build_safe_page_filename(page_name: str) -> str:
+    """Create a filesystem-safe PDF filename from a page name."""
+    normalized_name = "_".join((page_name or "Seite").strip().split())
+    safe_name = "".join(
+        char if char.isalnum() or char in {"_", "-"} else "_"
+        for char in normalized_name
+    ).strip("_")
+    if not safe_name:
+        safe_name = "Seite"
+    return f"{safe_name}.pdf"
+
+
+def _save_pdf_content(pdf_content: bytes, record_signature: Optional[str], record_id: str, filename: str) -> str:
+    """Persist PDF content and return the relative path used for storage."""
     # Create directory structure: uploads/{signature_folder}/
     signature_folder = _build_signature_folder_name(record_signature, record_id)
     record_dir = config.UPLOAD_DIRECTORY / signature_folder
     record_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Store uploaded PDFs with fixed naming convention.
-    filename = f"Seite_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+
     file_path = record_dir / filename
-    
+
+    if len(pdf_content) > config.MAX_UPLOAD_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File too large. Maximum size: {config.MAX_UPLOAD_SIZE / (1024*1024)}MB"
+        )
+
     # Save file
     with open(file_path, "wb") as f:
-        content = file.file.read()
-        # Check file size
-        if len(content) > config.MAX_UPLOAD_SIZE:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"File too large. Maximum size: {config.MAX_UPLOAD_SIZE / (1024*1024)}MB"
-            )
-        f.write(content)
-    
+        f.write(pdf_content)
+
     # Return relative path for database storage
     return f"{signature_folder}/{filename}"
+
+
+def save_uploaded_file(file: UploadFile, record_signature: Optional[str], record_id: str) -> str:
+    """Save a single uploaded file to disk and return relative path."""
+    filename = f"Seite_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return _save_pdf_content(file.file.read(), record_signature, record_id, filename)
+
+
+def _split_pdf_pages(pdf_content: bytes) -> list[bytes]:
+    """Split a PDF into single-page PDFs."""
+    try:
+        reader = PdfReader(BytesIO(pdf_content))
+        if reader.is_encrypted:
+            raise ValueError("Encrypted PDF files are not supported")
+
+        if len(reader.pages) <= 1:
+            return [pdf_content]
+
+        pages: list[bytes] = []
+        for pdf_page in reader.pages:
+            writer = PdfWriter()
+            writer.add_page(pdf_page)
+            buffer = BytesIO()
+            writer.write(buffer)
+            pages.append(buffer.getvalue())
+        return pages
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid PDF file: {str(exc)}"
+        )
+
+
+def _check_single_page_pdf(pdf_content: bytes) -> None:
+    """Raise HTTP 400 if the PDF has more than one page (used for update/edit validation)."""
+    try:
+        reader = PdfReader(BytesIO(pdf_content))
+        if reader.is_encrypted:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid PDF file: Encrypted PDF files are not supported",
+            )
+        if len(reader.pages) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Only single-page PDFs are allowed when updating an existing page. "
+                       f"The uploaded file has {len(reader.pages)} pages.",
+            )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid PDF file: {str(exc)}",
+        )
+
+
+
+def _serialize_page(page) -> dict:
+    """Serialize page response payload."""
+    return {
+        "id": str(page.id),
+        "name": page.name,
+        "description": page.description,
+        "page": page.page,
+        "comment": page.comment,
+        "record_id": str(page.record_id),
+        "location_file": page.location_file,
+        "restriction_id": str(page.restriction_id),
+        "workstatus_id": str(page.workstatus_id) if page.workstatus_id else None,
+        "created_on": page.created_on.isoformat() if page.created_on else None,
+    }
+
+
+def _parse_uuid(value: str, field_name: str) -> uuid.UUID:
+    """Parse a UUID form/path value and raise a request error when invalid."""
+    try:
+        return uuid.UUID(str(value))
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid {field_name}",
+        )
 
 
 def delete_uploaded_file(location_file: str) -> None:
@@ -413,8 +508,12 @@ async def create_page(
             )
     
     """
+    record_uuid = _parse_uuid(record_id, "record_id")
+    restriction_uuid = _parse_uuid(restriction_id, "restriction_id")
+    workstatus_uuid = _parse_uuid(workstatus_id, "workstatus_id") if workstatus_id else None
+
     # Validate that record exists
-    record = db.query(Record).filter(Record.id == record_id).first()
+    record = db.query(Record).filter(Record.id == record_uuid).first()
     if not record:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -422,7 +521,7 @@ async def create_page(
         )
     
     # Validate that restriction exists
-    restriction = db.query(Restriction).filter(Restriction.id == restriction_id).first()
+    restriction = db.query(Restriction).filter(Restriction.id == restriction_uuid).first()
     if not restriction:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -430,39 +529,89 @@ async def create_page(
         )
     
     # Validate that workstatus exists (if provided)
-    if workstatus_id:
-        workstatus = db.query(WorkStatus).filter(WorkStatus.id == workstatus_id).first()
+    if workstatus_uuid:
+        workstatus = db.query(WorkStatus).filter(WorkStatus.id == workstatus_uuid).first()
         if not workstatus:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="WorkStatus not found"
             )
-    
-    # Create page object
-    new_page = Page(
-        name=name,
-        description=description,
-        page=page,
-        comment=comment,
-        record_id=record_id,
-        restriction_id=restriction_id,
-        workstatus_id=workstatus_id,
-        created_by=current_user.id,
-        last_modified_by=current_user.id,
-    )
-    
-    db.add(new_page)
-    db.flush()  # Get the page ID
-    
-    # Handle file upload if provided
+
+    pdf_pages: list[bytes] = []
     if file and file.filename:
         validate_file(file)
-        location_file = save_uploaded_file(file, record.signature, str(record.id))
-        new_page.location_file = location_file
-    
+        pdf_content = await file.read()
+        pdf_pages = _split_pdf_pages(pdf_content)
+
+    created_pages: list[Page] = []
+    should_split_pdf = len(pdf_pages) > 1
+
+    if should_split_pdf:
+        existing_page_count = db.query(Page).filter(
+            Page.record_id == record.id,
+            Page.active == True,
+        ).count()
+
+        for index, pdf_page_content in enumerate(pdf_pages, start=existing_page_count + 1):
+            page_name = f"Seite {index}"
+            new_page = Page(
+                name=page_name,
+                description=description,
+                page=page,
+                comment=comment,
+                record_id=record_uuid,
+                restriction_id=restriction_uuid,
+                workstatus_id=workstatus_uuid,
+                created_by=current_user.id,
+                last_modified_by=current_user.id,
+            )
+            db.add(new_page)
+            db.flush()
+
+            new_page.location_file = _save_pdf_content(
+                pdf_page_content,
+                record.signature,
+                str(record.id),
+                _build_safe_page_filename(page_name),
+            )
+            created_pages.append(new_page)
+    else:
+        new_page = Page(
+            name=name,
+            description=description,
+            page=page,
+            comment=comment,
+            record_id=record_uuid,
+            restriction_id=restriction_uuid,
+            workstatus_id=workstatus_uuid,
+            created_by=current_user.id,
+            last_modified_by=current_user.id,
+        )
+
+        db.add(new_page)
+        db.flush()
+
+        if pdf_pages:
+            new_page.location_file = _save_pdf_content(
+                pdf_pages[0],
+                record.signature,
+                str(record.id),
+                f"Seite_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+            )
+
+        created_pages.append(new_page)
+
     db.commit()
-    db.refresh(new_page)
-    
+    for created_page in created_pages:
+        db.refresh(created_page)
+
+    if should_split_pdf:
+        return {
+            "items": [_serialize_page(created_page) for created_page in created_pages],
+            "created_count": len(created_pages),
+            "split_pdf": True,
+        }
+
     return {
         "id": str(new_page.id),
         "name": new_page.name,
@@ -477,6 +626,9 @@ async def create_page(
         "restriction_id": str(new_page.restriction_id),
         "workstatus_id": str(new_page.workstatus_id) if new_page.workstatus_id else None,
         "created_on": new_page.created_on.isoformat() if new_page.created_on else None,
+        **_serialize_page(created_pages[0]),
+        "created_count": 1,
+        "split_pdf": False,
     }
 
 
@@ -497,19 +649,23 @@ async def update_page(
     """
     Update an existing page
     Only users with 'admin' or 'user_page' role can update pages
-        can_edit_page = current_user.has_role("admin") or current_user.has_role("user_page")
-        can_manage_file = current_user.has_role("admin") or current_user.has_role("user_scan")
-
-        # User must be allowed to either edit page data or manage files.
-        if not (can_edit_page or can_manage_file):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions. Only admin, user_page, or user_scan can update pages."
-            )
-    
     """
+    can_edit_page = current_user.has_role("admin") or current_user.has_role("user_page")
+    can_manage_file = current_user.has_role("admin") or current_user.has_role("user_scan")
+
+    # User must be allowed to either edit page data or manage files.
+    if not (can_edit_page or can_manage_file):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions. Only admin, user_page, or user_scan can update pages."
+        )
+
+    page_uuid = _parse_uuid(page_id, "page_id")
+    restriction_uuid = _parse_uuid(restriction_id, "restriction_id")
+    workstatus_uuid = _parse_uuid(workstatus_id, "workstatus_id") if workstatus_id else None
+
     # Get existing page
-    existing_page = db.query(Page).filter(Page.id == page_id, Page.active == True).first()
+    existing_page = db.query(Page).filter(Page.id == page_uuid, Page.active == True).first()
     
     if not existing_page:
         raise HTTPException(
@@ -518,7 +674,7 @@ async def update_page(
         )
     
     # Validate that restriction exists
-    restriction = db.query(Restriction).filter(Restriction.id == restriction_id).first()
+    restriction = db.query(Restriction).filter(Restriction.id == restriction_uuid).first()
     if not restriction:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -526,8 +682,8 @@ async def update_page(
         )
     
     # Validate that workstatus exists (if provided)
-    if workstatus_id:
-        workstatus = db.query(WorkStatus).filter(WorkStatus.id == workstatus_id).first()
+    if workstatus_uuid:
+        workstatus = db.query(WorkStatus).filter(WorkStatus.id == workstatus_uuid).first()
         if not workstatus:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -540,8 +696,8 @@ async def update_page(
         existing_page.description = description
         existing_page.page = page
         existing_page.comment = comment
-        existing_page.restriction_id = restriction_id
-        existing_page.workstatus_id = workstatus_id
+        existing_page.restriction_id = restriction_uuid
+        existing_page.workstatus_id = workstatus_uuid
         existing_page.last_modified_by = current_user.id
         existing_page.last_modified_on = datetime.now(timezone.utc)
     
@@ -563,14 +719,23 @@ async def update_page(
                 detail="Insufficient permissions to upload files."
             )
         validate_file(file)
+        pdf_content = file.file.read()
+        if len(pdf_content) > config.MAX_UPLOAD_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File too large. Maximum size: {config.MAX_UPLOAD_SIZE / (1024*1024)}MB"
+            )
+        _check_single_page_pdf(pdf_content)
         # Delete old file if exists
         if existing_page.location_file:
             delete_uploaded_file(existing_page.location_file)
         # Save new file
-        location_file = save_uploaded_file(
-            file,
+        filename = f"Seite_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        location_file = _save_pdf_content(
+            pdf_content,
             existing_page.record.signature if existing_page.record else None,
             str(existing_page.record_id),
+            filename,
         )
         existing_page.location_file = location_file
     
