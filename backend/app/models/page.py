@@ -4,7 +4,7 @@ Page model
 
 import uuid
 from sqlalchemy import Column, UUID, String, ForeignKey, Text
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 
 from app.database import Base
 from .base import BaseModel
@@ -22,7 +22,12 @@ class Page(BaseModel):
     page = Column(Text, nullable=True)  # Page content/text
     comment = Column(Text, nullable=True)
     record_id = Column(UUID(as_uuid=True), ForeignKey("records.id"), nullable=False, index=True)
-    location_file = Column(String(255), nullable=True)  # Path to original file
+    # Database column renamed to `orgin_file` (intentional spelling from requirements).
+    # Keep `location_file` as ORM synonym for backward compatibility in existing code.
+    orgin_file = Column(String(255), nullable=True)  # Path to original file
+    location_file = synonym("orgin_file")
+    current_file = Column(Text, nullable=True)
+    restriction_file = Column(Text, nullable=True)
     location_thumbnail = Column(String(255), nullable=True)  # Path to thumbnail
     location_file_watermark = Column(String(255), nullable=True)  # Path to watermarked file
     restriction_id = Column(UUID(as_uuid=True), ForeignKey("restrictions.id"), nullable=False)

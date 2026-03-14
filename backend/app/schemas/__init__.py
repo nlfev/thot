@@ -346,7 +346,10 @@ class PageResponse(PageBase):
     """Page response schema"""
 
     id: UUID
+    orgin_file: Optional[str]
     location_file: Optional[str]
+    current_file: Optional[str]
+    restriction_file: Optional[str]
     location_thumbnail: Optional[str]
     location_file_watermark: Optional[str]
     workstatus_id: Optional[UUID]
@@ -374,7 +377,10 @@ class PageListResponse(BaseModel):
 class PageListDetailResponse(PageListResponse):
     """Detailed page list response"""
 
+    orgin_file: Optional[str]
     location_file: Optional[str]
+    current_file: Optional[str]
+    restriction_file: Optional[str]
     active: bool
 
 
