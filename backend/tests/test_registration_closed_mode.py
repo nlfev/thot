@@ -7,6 +7,7 @@ from pathlib import Path
 from config import config
 from app.models import Role, User, UserConfirmation, UserConfirmations, UserRegistration
 from app.services.registration_service import RegistrationService
+from app.utils.email_service import email_service
 
 
 def _host_headers():
@@ -102,6 +103,68 @@ def test_closed_registration_blocks_anonymous_users_after_first_user(client, db,
 
     assert response.status_code == 403
     assert response.json()["detail"] == "Registration is currently limited to support and admin users"
+
+
+def test_registration_trims_username_before_persisting(client, db, monkeypatch):
+    monkeypatch.setattr(config, "CLOSED_REGISTRATION", False)
+    monkeypatch.setattr(email_service, "send_registration_confirmation_email", lambda **kwargs: True)
+
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "  trimmed-user  ",
+            "email": "trimmed@example.com",
+            "tos_agreed": True,
+            "language": "en",
+        },
+        headers=_host_headers(),
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["username"] == "trimmed-user"
+
+    registration = db.query(UserRegistration).filter(UserRegistration.email == "trimmed@example.com").one()
+    assert registration.username == "trimmed-user"
+
+
+def test_registration_rejects_existing_username_after_trim(client, db, monkeypatch):
+    monkeypatch.setattr(config, "CLOSED_REGISTRATION", False)
+    monkeypatch.setattr(email_service, "send_registration_confirmation_email", lambda **kwargs: True)
+    _create_user(db, "existing-user", "existing-user@example.com")
+
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "  existing-user  ",
+            "email": "another@example.com",
+            "tos_agreed": True,
+            "language": "en",
+        },
+        headers=_host_headers(),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Username already exists"
+
+
+def test_registration_rejects_username_shorter_than_five_after_trim(client, monkeypatch):
+    monkeypatch.setattr(config, "CLOSED_REGISTRATION", False)
+
+    response = client.post(
+        "/api/v1/auth/register",
+        json={
+            "username": "  abcd  ",
+            "email": "short@example.com",
+            "tos_agreed": True,
+            "language": "en",
+        },
+        headers=_host_headers(),
+    )
+
+    assert response.status_code == 422
+    errors = response.json()["detail"]
+    assert any("Username must be at least 5 characters" in error["msg"] for error in errors)
 
 
 def test_open_registration_tos_confirmation_uses_current_timestamp(db):

@@ -46,7 +46,7 @@
 </template>
 
 <script>
-import { defineComponent } from 'vue'
+import { defineComponent, reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 
@@ -59,13 +59,13 @@ export default defineComponent({
     return {
       authStore,
       appStore,
-      form: {
+      form: reactive({
         username: '',
         email: '',
         tosAgreed: false,
-      },
-      isLoading: false,
-      errorMessage: '',
+      }),
+      isLoading: ref(false),
+      errorMessage: ref(''),
     }
   },
   computed: {
@@ -82,22 +82,33 @@ export default defineComponent({
         return
       }
 
+      const normalizedUsername = this.form.username.trim()
+      if (normalizedUsername.length < 5) {
+        this.errorMessage = this.$t('validation.username')
+        return
+      }
+
+      const normalizedEmail = this.form.email.trim()
+
       this.isLoading = true
       this.errorMessage = ''
 
       try {
         const response = await this.authStore.register(
-          this.form.username,
-          this.form.email,
+          normalizedUsername,
+          normalizedEmail,
           this.isClosedRegistration ? false : this.form.tosAgreed,
           this.$i18n.locale
         )
 
+        this.form.username = normalizedUsername
+        this.form.email = normalizedEmail
+
         this.$router.push({
           name: 'RegisterPending',
           query: {
-            username: this.form.username,
-            email: this.form.email,
+            username: normalizedUsername,
+            email: normalizedEmail,
             expiresInHours: String(response?.expires_in_hours || 24),
             admin: String(Boolean(response?.admin)),
           },

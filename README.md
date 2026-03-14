@@ -116,6 +116,15 @@ Notes:
 - `otp_code` is also required for users with role `support` or `admin`.
 - On success, response contains `access_token` and `token_type`.
 
+### 2a. Registration Behavior
+- Username rules for `POST /api/v1/auth/register`:
+  - Minimum length is 5 characters (after trimming).
+  - Leading and trailing spaces are removed automatically.
+  - Duplicate usernames are rejected with a clear validation error.
+- Closed registration behavior:
+  - If `features.closedRegistration=true`, public registration is hidden in frontend login/navigation.
+  - New registrations are then only possible for authenticated `support` or `admin` users.
+
 ### 3. Authenticate in Swagger
 - Click `Authorize` (top-right).
 - Paste the token from `access_token` into the bearer auth field.
@@ -198,7 +207,7 @@ CREATE DATABASE nlf_db_test OWNER nlf_user;
 ## API Endpoints
 
 ### Authentication
-- `POST /api/v1/auth/register` - Register new user. When `CLOSED_REGISTRATION=true` and at least one user already exists, this endpoint is limited to authenticated `support` or `admin` users. The bootstrap case stays open until the first user exists.
+- `POST /api/v1/auth/register` - Register new user. Username is trimmed (leading/trailing spaces removed), must be at least 5 characters, and must be unique across `users` and pending `user_registrations`. When `CLOSED_REGISTRATION=true` and at least one user already exists, this endpoint is limited to authenticated `support` or `admin` users. The bootstrap case stays open until the first user exists.
 - `POST /api/v1/auth/login` - Login user
 - `POST /api/v1/auth/password-reset` - Request password reset
 - `POST /api/v1/auth/password-reset/confirm/{token}` - Confirm password reset

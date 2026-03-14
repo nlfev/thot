@@ -782,7 +782,9 @@ See the [Alembic Documentation](https://alembic.sqlalchemy.org/) for advanced us
 3. **Register a new account**
    - The first user will automatically receive the **admin** role
    - Subsequent users receive the **user** role
+  - Username is normalized by trimming leading/trailing spaces, must be at least 5 characters, and must be unique.
   - If `CLOSED_REGISTRATION=true`, public self-registration is disabled after the first user exists. New registrations can then only be created by authenticated **support** or **admin** users.
+  - In this closed-registration state, the login page no longer shows the public registration link.
 4. **Check your email** for the verification link
 5. **Complete registration** by setting your password
   - In open registration mode, Terms of Service are accepted in step 1.

@@ -54,6 +54,8 @@ class RegistrationService:
         """
         Check if username is available (not in users table or user_registrations table)
         """
+        username = username.strip()
+
         # Check in users table
         user_exists = db.query(User).filter(User.username == username).first()
         if user_exists:
@@ -79,6 +81,11 @@ class RegistrationService:
         Returns: (UserRegistration, error_message)
         """
         try:
+            username = username.strip()
+
+            if len(username) < 5:
+                return None, "Username must be at least 5 characters"
+
             # Cleanup expired registrations first
             RegistrationService.cleanup_expired_registrations(db)
 

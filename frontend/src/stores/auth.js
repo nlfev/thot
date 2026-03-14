@@ -80,10 +80,13 @@ export const useAuthStore = defineStore('auth', {
       this.isLoading = true
       this.error = null
 
+      const normalizedUsername = typeof username === 'string' ? username.trim() : username
+      const normalizedEmail = typeof email === 'string' ? email.trim() : email
+
       try {
         const response = await api.post('/auth/register', {
-          username,
-          email,
+          username: normalizedUsername,
+          email: normalizedEmail,
           tos_agreed: tosAgreed,
           language: language,
         })

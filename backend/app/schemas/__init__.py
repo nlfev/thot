@@ -27,10 +27,18 @@ class UserBase(BaseModel):
 class UserRegisterRequest(BaseModel):
     """User registration request"""
 
-    username: str = Field(..., min_length=3, max_length=255)
+    username: str = Field(..., min_length=5, max_length=255)
     email: EmailStr
     tos_agreed: bool = Field(..., description="Required for open registration; skipped in closed registration step 1")
     language: str = Field("en", max_length=2)
+
+    @field_validator("username")
+    @classmethod
+    def normalize_username(cls, v: str) -> str:
+        username = v.strip()
+        if len(username) < 5:
+            raise ValueError("Username must be at least 5 characters")
+        return username
 
 
 class UserCompleteRegistration(BaseModel):

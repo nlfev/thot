@@ -134,4 +134,124 @@ describe('Registration flow', () => {
     }))
     expect(push).toHaveBeenCalledWith('/auth/login')
   })
+
+  it('trims username before submitting registration', async () => {
+    const appStore = useAppStore()
+    appStore.appConfig = {
+      features: {
+        closedRegistration: false,
+      },
+    }
+
+    const authStore = useAuthStore()
+    authStore.register = vi.fn().mockResolvedValue({
+      expires_in_hours: 24,
+      admin: false,
+    })
+
+    const push = vi.fn()
+    const wrapper = mount(Register, {
+      global: {
+        plugins: [createI18nInstance()],
+        mocks: {
+          $router: { push },
+        },
+        stubs: {
+          RouterLink: {
+            template: '<a><slot /></a>',
+          },
+        },
+      },
+    })
+
+    await wrapper.find('#username').setValue('  new-user  ')
+    await wrapper.find('#email').setValue('new@example.com')
+    await wrapper.find('#tos').setValue(true)
+    await wrapper.find('form').trigger('submit.prevent')
+
+    expect(authStore.register).toHaveBeenCalledWith('new-user', 'new@example.com', true, 'en')
+    expect(push).toHaveBeenCalledWith({
+      name: 'RegisterPending',
+      query: {
+        username: 'new-user',
+        email: 'new@example.com',
+        expiresInHours: '24',
+        admin: 'false',
+      },
+    })
+  })
+
+  it('shows validation error for username shorter than 5 after trimming', async () => {
+    const appStore = useAppStore()
+    appStore.appConfig = {
+      features: {
+        closedRegistration: false,
+      },
+    }
+
+    const authStore = useAuthStore()
+    authStore.register = vi.fn().mockResolvedValue({
+      expires_in_hours: 24,
+      admin: false,
+    })
+
+    const wrapper = mount(Register, {
+      global: {
+        plugins: [createI18nInstance()],
+        mocks: {
+          $router: { push: vi.fn() },
+        },
+        stubs: {
+          RouterLink: {
+            template: '<a><slot /></a>',
+          },
+        },
+      },
+    })
+
+    await wrapper.find('#username').setValue('  abcd  ')
+    await wrapper.find('#email').setValue('short@example.com')
+    await wrapper.find('#tos').setValue(true)
+    await wrapper.find('form').trigger('submit.prevent')
+
+    expect(authStore.register).not.toHaveBeenCalled()
+    expect(wrapper.vm.errorMessage).toBe('Username must be at least 5 characters')
+  })
+
+  it('renders backend error when username already exists', async () => {
+    const appStore = useAppStore()
+    appStore.appConfig = {
+      features: {
+        closedRegistration: false,
+      },
+    }
+
+    const authStore = useAuthStore()
+    authStore.register = vi.fn().mockRejectedValue({ detail: 'Username already exists' })
+
+    const wrapper = mount(Register, {
+      global: {
+        plugins: [createI18nInstance()],
+        mocks: {
+          $router: { push: vi.fn() },
+        },
+        stubs: {
+          RouterLink: {
+            template: '<a><slot /></a>',
+          },
+        },
+      },
+    })
+
+    await wrapper.find('#username').setValue('existing-user')
+    await wrapper.find('#email').setValue('existing@example.com')
+    await wrapper.find('#tos').setValue(true)
+    await wrapper.find('form').trigger('submit.prevent')
+    await flushPromises()
+    await nextTick()
+
+    expect(authStore.register).toHaveBeenCalled()
+    expect(wrapper.find('.error-box').exists()).toBe(true)
+    expect(wrapper.find('.error-box').text()).toContain('Username already exists')
+  })
 })
