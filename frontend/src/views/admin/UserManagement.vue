@@ -660,25 +660,6 @@ export default defineComponent({
   color: #666;
 }
 
-.alert {
-  padding: 1rem;
-  margin-bottom: 1rem;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.alert-success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.alert-danger {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
 .users-table-container {
   background: white;
   border: 1px solid #ddd;
@@ -725,31 +706,6 @@ export default defineComponent({
   cursor: pointer;
 }
 
-.badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  margin-right: 4px;
-}
-
-.badge-success {
-  background-color: #d4edda;
-  color: #155724;
-}
-
-.badge-danger {
-  background-color: #f8d7da;
-  color: #721c24;
-}
-
-.badge-role {
-  background-color: #e7f3ff;
-  color: #004085;
-  border: 1px solid #b3d9ff;
-}
-
 .roles-cell {
   display: flex;
   flex-wrap: wrap;
@@ -765,68 +721,6 @@ export default defineComponent({
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.btn {
-  padding: 8px 12px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
-  color: #333;
-  cursor: pointer;
-  font-size: 13px;
-  text-decoration: none;
-  display: inline-block;
-  transition: all 0.2s;
-}
-
-.btn:hover {
-  background: #f0f0f0;
-}
-
-.btn-primary {
-  background: #007bff;
-  color: white;
-  border-color: #007bff;
-}
-
-.btn-primary:hover {
-  background: #0056b3;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-  border-color: #6c757d;
-}
-
-.btn-secondary:hover {
-  background: #545b62;
-}
-
-.btn-info {
-  background: #17a2b8;
-  color: white;
-  border-color: #17a2b8;
-}
-
-.btn-info:hover {
-  background: #117a8b;
-}
-
-.btn-warning {
-  background: #ffc107;
-  color: #333;
-  border-color: #ffc107;
-}
-
-.btn-warning:hover {
-  background: #e0a800;
-}
-
-.btn-sm {
-  padding: 6px 10px;
-  font-size: 12px;
 }
 
 .pagination {
@@ -889,18 +783,6 @@ export default defineComponent({
   font-size: 20px;
 }
 
-.btn-close {
-  background: none;
-  border: none;
-  font-size: 28px;
-  cursor: pointer;
-  color: #666;
-}
-
-.btn-close:hover {
-  color: #000;
-}
-
 .modal-body {
   padding: 1.5rem;
 }
@@ -950,7 +832,7 @@ export default defineComponent({
     flex-direction: column;
   }
 
-  .btn-sm {
+  .actions-cell > * {
     width: 100%;
   }
 }

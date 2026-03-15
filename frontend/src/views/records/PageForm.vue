@@ -322,18 +322,6 @@ export default {
   border-top: 1px solid #eee;
 }
 
-.alert {
-  padding: 12px 15px;
-  border-radius: 4px;
-  margin-bottom: 20px;
-}
-
-.alert-danger {
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
-}
-
 .loading {
   text-align: center;
   padding: 20px;

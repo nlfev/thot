@@ -351,32 +351,4 @@ export default defineComponent({
   border-radius: 4px;
 }
 
-.add-role-form .btn {
-  white-space: nowrap;
-}
-
-.btn-link {
-  background: none;
-  border: none;
-  color: #007bff;
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0.5rem 0;
-}
-
-.btn-link:hover {
-  color: #0056b3;
-}
-
-.badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-}
-
-.badge-secondary {
-  background-color: #6c757d;
-  color: white;
-}
 </style>

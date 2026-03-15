@@ -646,68 +646,6 @@ button {
   transition: background-color 0.3s;
 }
 
-.btn-primary {
-  background-color: #4CAF50;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #45a049;
-}
-
-.btn-primary:disabled,
-.btn-secondary:disabled {
-  background-color: #cccccc;
-  color: #666;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background-color: #eef2f6;
-  color: #243746;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background-color: #dde4ea;
-}
-
-.alert {
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  border-radius: 4px;
-  border-left: 4px solid;
-}
-
-.alert-success {
-  background-color: #f1f8f5;
-  border-color: #4CAF50;
-  color: #2d5a3d;
-}
-
-.alert-error {
-  background-color: #fdf1f1;
-  border-color: #f44336;
-  color: #902b2b;
-}
-
-.badge {
-  display: inline-block;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.badge-success {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-}
-
-.badge-pending {
-  background-color: #fff3e0;
-  color: #e65100;
-}
-
 .otp-status {
   margin: 0 0 1rem;
   font-weight: 600;

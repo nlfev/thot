@@ -462,32 +462,6 @@ small.error {
   font-weight: 500;
 }
 
-.btn-primary {
-  width: 100%;
-  padding: 12px;
-  margin-top: 20px;
-  font-size: 16px;
-  font-weight: 600;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.btn-primary {
-  background-color: #2196f3;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background-color: #1976d2;
-}
-
-.btn-primary:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
 .loading,
 .error-message {
   text-align: center;
@@ -506,20 +480,5 @@ small.error {
   color: #1976d2;
   margin-top: 20px;
   margin-bottom: 20px;
-}
-
-.error-message .btn {
-  display: inline-block;
-  margin-top: 20px;
-  padding: 10px 20px;
-  background-color: #2196f3;
-  color: white;
-  text-decoration: none;
-  border-radius: 4px;
-  transition: background-color 0.3s ease;
-}
-
-.error-message .btn:hover {
-  background-color: #1976d2;
 }
 </style>

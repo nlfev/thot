@@ -116,16 +116,4 @@ export default defineComponent({
   color: #555;
   margin-bottom: 16px;
 }
-
-.btn-primary {
-  width: 100%;
-  padding: 12px;
-  border: none;
-  border-radius: 6px;
-  background: #1976d2;
-  color: #fff;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
-}
 </style>

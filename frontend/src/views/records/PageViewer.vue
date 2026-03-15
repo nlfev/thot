@@ -366,18 +366,6 @@ export default {
   color: #666;
 }
 
-.alert {
-  padding: 1rem;
-  border-radius: 4px;
-  margin-bottom: 1.5rem;
-}
-
-.alert-danger {
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  color: #721c24;
-}
-
 .page-viewer-content {
   display: grid;
   grid-template-columns: 400px 1fr;
@@ -457,27 +445,6 @@ export default {
 .info-text.scrollable {
   max-height: 200px;
   overflow-y: auto;
-}
-
-.badge {
-  display: inline-block;
-  padding: 0.35rem 0.65rem;
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1;
-  color: #fff;
-  text-align: center;
-  white-space: nowrap;
-  vertical-align: baseline;
-  border-radius: 0.25rem;
-}
-
-.badge-info {
-  background-color: #17a2b8;
-}
-
-.badge-secondary {
-  background-color: #6c757d;
 }
 
 /* Right Panel - PDF Display */
@@ -575,48 +542,6 @@ export default {
   width: 100%;
   height: 100%;
   border: none;
-}
-
-.btn {
-  display: inline-block;
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
-  font-weight: 400;
-  text-align: center;
-  text-decoration: none;
-  vertical-align: middle;
-  cursor: pointer;
-  user-select: none;
-  border: 1px solid transparent;
-  border-radius: 0.25rem;
-  transition: all 0.15s ease-in-out;
-}
-
-.btn-sm {
-  padding: 0.375rem 0.75rem;
-  font-size: 0.875rem;
-}
-
-.btn-primary {
-  color: #fff;
-  background-color: #007bff;
-  border-color: #007bff;
-}
-
-.btn-primary:hover {
-  background-color: #0056b3;
-  border-color: #004085;
-}
-
-.btn-secondary {
-  color: #fff;
-  background-color: #6c757d;
-  border-color: #6c757d;
-}
-
-.btn-secondary:hover {
-  background-color: #5a6268;
-  border-color: #545b62;
 }
 
 @media (max-width: 1200px) {

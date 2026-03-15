@@ -165,21 +165,6 @@ h2 {
   line-height: 1.6;
 }
 
-.alert {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 1rem;
-  border-radius: 0.5rem;
-  margin: 1.5rem 0;
-}
-
-.alert-info {
-  background-color: #dbeafe;
-  border: 1px solid #93c5fd;
-  color: #1e40af;
-}
-
 .alert svg {
   flex-shrink: 0;
   margin-top: 0.125rem;
@@ -193,42 +178,12 @@ h2 {
   flex-wrap: wrap;
 }
 
-.btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.375rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: all 0.2s;
-  border: none;
-  cursor: pointer;
-  display: inline-block;
-}
-
-.btn-primary {
-  background-color: #2563eb;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #1d4ed8;
-}
-
-.btn-secondary {
-  background-color: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
-}
-
-.btn-secondary:hover {
-  background-color: #e5e7eb;
-}
-
 @media (max-width: 768px) {
   .button-group {
     flex-direction: column;
   }
   
-  .btn {
+  .button-group > * {
     width: 100%;
   }
 }

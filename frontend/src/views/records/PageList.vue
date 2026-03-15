@@ -183,8 +183,8 @@ export default {
       error: null,
       successMessage: '',
       searchName: '',
-      pageSize: 10,
       currentPage: 1,
+      pageSize: 10,
       total: 0,
     }
   },
@@ -202,45 +202,47 @@ export default {
       return this.authStore.hasRole('admin') || this.authStore.hasRole('user_scan')
     },
   },
-  methods: {
-    async loadPages() {
-      this.loading = true
-      this.error = null
-      try {
-        const response = await pageService.listPages({
-          record_id: this.recordId,
-          name: this.searchName || undefined,
-          skip: (this.currentPage - 1) * this.pageSize,
-          limit: this.pageSize,
-        })
-        this.pages = response.items || []
-        this.total = response.total || 0
-      } catch (err) {
-        console.error('Error loading pages:', err)
-        this.error = this.$t('pages.loadError')
-      } finally {
-        this.loading = false
-      }
+  watch: {
+    currentPage() {
+      this.loadPages()
     },
+  },
+  methods: {
     async loadRecordTitle() {
       try {
         const record = await recordService.getRecord(this.recordId)
-        this.recordTitle = record.title || this.recordId
+        this.recordTitle = record?.title || this.$t('pages.unknownRecord')
       } catch (err) {
-        console.error('Error loading record title:', err)
-        this.recordTitle = this.recordId
+        this.recordTitle = this.$t('pages.unknownRecord')
       }
     },
-    async handleDelete(pageId) {
-      if (confirm(this.$t('pages.confirmDelete'))) {
-        try {
-          await pageService.deletePage(pageId)
-          this.successMessage = this.$t('pages.deleteSuccess')
-          await this.loadPages()
-        } catch (err) {
-          console.error('Error deleting page:', err)
-          this.error = this.$t('pages.deleteError')
+    async loadPages() {
+      this.loading = true
+      this.error = null
+
+      try {
+        const params = {
+          record_id: this.recordId,
+          skip: (this.currentPage - 1) * this.pageSize,
+          limit: this.pageSize,
         }
+
+        if (this.searchName) {
+          params.name = this.searchName
+        }
+
+        const response = await pageService.listPages(params)
+        this.pages = response.items || []
+        this.total = response.total || 0
+
+        if (this.total > 0 && this.currentPage > this.totalPages) {
+          this.currentPage = this.totalPages
+        }
+      } catch (err) {
+        console.error('Error loading pages:', err)
+        this.error = err.message || this.$t('pages.loadError')
+      } finally {
+        this.loading = false
       }
     },
     handleSearch() {
@@ -253,9 +255,25 @@ export default {
     },
     resetFilters() {
       this.searchName = ''
-      this.pageSize = 10
       this.currentPage = 1
       this.loadPages()
+    },
+    async handleDelete(pageId) {
+      if (!confirm(this.$t('pages.confirmDelete'))) {
+        return
+      }
+
+      this.error = null
+      this.successMessage = ''
+
+      try {
+        await pageService.deletePage(pageId)
+        this.successMessage = this.$t('pages.deleteSuccess')
+        await this.loadPages()
+      } catch (err) {
+        console.error('Error deleting page:', err)
+        this.error = err.message || this.$t('pages.deleteError')
+      }
     },
     formatDate(dateString) {
       if (!dateString) return ''
@@ -421,24 +439,6 @@ export default {
   flex-wrap: wrap;
 }
 
-.badge {
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  border-radius: 12px;
-  font-size: 0.85rem;
-  font-weight: 500;
-}
-
-.badge-info {
-  background: #e3f2fd;
-  color: #1976d2;
-}
-
-.badge-secondary {
-  background: #f0f0f0;
-  color: #666;
-}
-
 .page-card-footer {
   padding: 0.75rem 1rem;
   background: #fafafa;
@@ -471,100 +471,10 @@ export default {
   font-size: 1.1rem;
 }
 
-.loading,
-.alert {
+.loading {
   padding: 1rem;
   margin-bottom: 1rem;
   border-radius: 4px;
 }
 
-.alert-success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
-}
-
-.alert-danger {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background: white;
-  color: #333;
-  cursor: pointer;
-  text-decoration: none;
-  font-size: 0.9rem;
-  transition: all 0.2s;
-}
-
-.btn:hover {
-  background: #f0f0f0;
-}
-
-.btn-primary {
-  background: #007bff;
-  color: white;
-  border-color: #007bff;
-}
-
-.btn-primary:hover {
-  background: #0056b3;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-  border-color: #6c757d;
-}
-
-.btn-secondary:hover {
-  background: #545b62;
-}
-
-.btn-info {
-  background: #17a2b8;
-  color: white;
-  border-color: #17a2b8;
-}
-
-.btn-info:hover {
-  background: #117a8b;
-}
-
-.btn-danger {
-  background: #dc3545;
-  color: white;
-  border-color: #dc3545;
-}
-
-.btn-danger:hover {
-  background: #c82333;
-}
-
-.btn-sm {
-  padding: 0.25rem 0.75rem;
-  font-size: 0.85rem;
-}
-
-.btn-link {
-  background: transparent;
-  color: #007bff;
-  border: none;
-  padding: 0.5rem;
-}
-
-.btn-link:hover {
-  background: transparent;
-  text-decoration: underline;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 </style>

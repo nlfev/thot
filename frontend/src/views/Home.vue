@@ -83,25 +83,6 @@ export default defineComponent({
 </script>
 
 <style scoped>
-.btn {
-  display: inline-block;
-  margin: 0.5rem;
-}
-
-.alert {
-  margin: 2rem auto;
-  padding: 1.5rem;
-  border-radius: 0.5rem;
-  max-width: 600px;
-  text-align: left;
-}
-
-.alert-info {
-  background-color: #d1ecf1;
-  border: 1px solid #bee5eb;
-  color: #0c5460;
-}
-
 .alert strong {
   display: block;
   margin-bottom: 0.5rem;
@@ -110,9 +91,5 @@ export default defineComponent({
 
 .alert p {
   margin-bottom: 1rem;
-}
-
-.alert .btn {
-  margin: 0.5rem 0 0 0;
 }
 </style>
