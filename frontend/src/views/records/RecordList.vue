@@ -102,7 +102,7 @@
       <table class="records-table">
         <thead>
           <tr>
-            <th>{{ $t('records.title') }}</th>
+            <th>{{ $t('records.columnTitle') }}</th>
             <th>{{ $t('records.signature') }}</th>
             <th>{{ $t('records.keywordsNames') }}</th>
             <th>{{ $t('records.keywordsLocations') }}</th>
