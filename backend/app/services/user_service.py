@@ -25,6 +25,15 @@ class UserService:
     """Service for user-related operations"""
 
     @staticmethod
+    def _normalize_to_utc(value: Optional[datetime]) -> Optional[datetime]:
+        """Normalize datetimes to timezone-aware UTC for safe comparisons."""
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    @staticmethod
     def create_user(
         db: Session,
         username: str,
@@ -110,18 +119,20 @@ class UserService:
         if not user.active:
             return None, "User account is locked"
 
-        # Check grace period
-        if user.unsuccessful_logins >= 3:
-            if user.timestamp_last_successful_login:
-                grace_period_minutes = (
-                    config.GRACE_PERIOD_MINUTES_5_ATTEMPTS
-                    if user.unsuccessful_logins >= 5
-                    else config.GRACE_PERIOD_MINUTES_3_ATTEMPTS
-                )
-                grace_until = user.timestamp_last_successful_login + timedelta(
+        # Check grace period based on configured attempt thresholds.
+        if user.timestamp_last_successful_login:
+            last_login_utc = UserService._normalize_to_utc(
+                user.timestamp_last_successful_login
+            )
+            grace_period_minutes = config.get_grace_period_minutes_for_attempts(
+                user.unsuccessful_logins
+            )
+            if grace_period_minutes > 0 and last_login_utc is not None:
+                grace_until = last_login_utc + timedelta(
                     minutes=grace_period_minutes
                 )
-                if datetime.now(timezone.utc).replace(tzinfo=None) < grace_until.replace(tzinfo=None):
+                if datetime.now(timezone.utc) < grace_until:
+                                                                                     
                     return None, "Login temporarily locked. Please try again later"
 
         # Verify password
@@ -130,7 +141,12 @@ class UserService:
             # Update timestamp on first unsuccessful attempt
             if user.unsuccessful_logins == 1:
                 user.timestamp_last_successful_login = datetime.now(timezone.utc)
+            grace_period_minutes = config.get_grace_period_minutes_for_attempts(
+                user.unsuccessful_logins
+            )
             db.commit()
+            if grace_period_minutes > 0:
+                return None, "Login temporarily locked. Please try again later"
             return None, "Invalid username or password"
 
         # Successful login

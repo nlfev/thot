@@ -63,9 +63,13 @@ class Config:
     EMAIL_CHANGE_TOKEN_EXPIRE_HOURS = 1
 
     # Login Security
-    MAX_UNSUCCESSFUL_LOGINS = 5
-    GRACE_PERIOD_MINUTES_3_ATTEMPTS = 5
-    GRACE_PERIOD_MINUTES_5_ATTEMPTS = 10
+    MAX_UNSUCCESSFUL_LOGINS = int(os.getenv("MAX_UNSUCCESSFUL_LOGINS", 5))
+    GRACE_PERIOD_MINUTES_3_ATTEMPTS = int(
+        os.getenv("GRACE_PERIOD_MINUTES_3_ATTEMPTS", 5)
+    )
+    GRACE_PERIOD_MINUTES_5_ATTEMPTS = int(
+        os.getenv("GRACE_PERIOD_MINUTES_5_ATTEMPTS", 10)
+    )
 
     # Password Requirements
     PASSWORD_MIN_LENGTH = 10
@@ -146,6 +150,15 @@ class Config:
     def ensure_upload_directory(cls):
         """Ensure upload directory exists"""
         cls.UPLOAD_DIRECTORY.mkdir(parents=True, exist_ok=True)
+
+    @classmethod
+    def get_grace_period_minutes_for_attempts(cls, unsuccessful_logins: int) -> int:
+        """Return configured grace period based on fixed thresholds of 3 and 5 failed logins."""
+        if unsuccessful_logins >= 5:
+            return cls.GRACE_PERIOD_MINUTES_5_ATTEMPTS
+        if unsuccessful_logins >= 3:
+            return cls.GRACE_PERIOD_MINUTES_3_ATTEMPTS
+        return 0
 
     @classmethod
     def get_legal_file_path(cls, document_type: str, language: str) -> Path:

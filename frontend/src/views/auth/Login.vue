@@ -2,27 +2,42 @@
   <div class="auth-container">
     <div class="card form-card">
       <h2>{{ $t('auth.loginTitle') }}</h2>
-      <p v-if="sessionNotice" class="info">{{ sessionNotice }}</p>
-      <p v-if="error" class="error">{{ error }}</p>
+      <p
+        v-if="sessionNotice"
+        class="info"
+      >
+        {{ sessionNotice }}
+      </p>
+      <p
+        v-if="error"
+        class="error"
+      >
+        {{ error }}
+      </p>
       <form @submit.prevent="handleLogin">
         <div class="form-group">
           <label for="username">{{ $t('common.username') }}</label>
-          <input v-model="form.username" type="text" id="username" required />
+          <input
+            id="username"
+            v-model="form.username"
+            type="text"
+            required
+          >
         </div>
         <div class="form-group">
           <label for="password">{{ $t('common.password') }}</label>
           <div class="password-input-wrapper">
-            <input 
-              v-model="form.password" 
-              :type="showPassword ? 'text' : 'password'" 
-              id="password" 
-              required 
-            />
+            <input
+              id="password"
+              v-model="form.password"
+              :type="showPassword ? 'text' : 'password'"
+              required
+            >
             <button
               type="button"
               class="password-toggle"
-              @click="showPassword = !showPassword"
               :aria-label="showPassword ? 'Hide password' : 'Show password'"
+              @click="showPassword = !showPassword"
             >
               <span v-if="showPassword">👁️</span>
               <span v-else>👁️‍🗨️</span>
@@ -34,25 +49,35 @@
             {{ $t('auth.otpCode') }}
             <span>({{ $t('common.optional') }})</span>
           </label>
-          <input 
-            v-model="form.otpCode" 
-            type="text" 
-            id="otp" 
+          <input
+            id="otp"
+            v-model="form.otpCode"
+            type="text"
             placeholder="123456"
             maxlength="6"
-          />
+          >
           <small>{{ $t('auth.enterOtpFromApp') }}</small>
         </div>
-        <button type="submit" :disabled="isLoading">
+        <button
+          type="submit"
+          :disabled="isLoading"
+        >
           {{ isLoading ? $t('common.loading') : $t('common.login') }}
         </button>
       </form>
       <p class="text-right mt-2">
-        <router-link to="/auth/password-reset">{{ $t('auth.forgotPassword') }}</router-link>
+        <router-link to="/auth/password-reset">
+          {{ $t('auth.forgotPassword') }}
+        </router-link>
       </p>
       <p class="text-center mt-3">
         {{ $t('auth.noAccount') }}
-        <router-link v-if="showRegisterLink" to="/auth/register">{{ $t('common.register') }}</router-link>
+        <router-link
+          v-if="showRegisterLink"
+          to="/auth/register"
+        >
+          {{ $t('common.register') }}
+        </router-link>
       </p>
     </div>
   </div>
@@ -62,6 +87,8 @@
 import { computed, defineComponent, reactive, ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
+
+const TEMPORARY_LOCK_MESSAGE = 'Login temporarily locked. Please try again later'
 
 export default defineComponent({
   name: 'Login',
@@ -98,6 +125,14 @@ export default defineComponent({
     }
   },
   methods: {
+    getLoginErrorMessage() {
+      if (this.authStore.error === TEMPORARY_LOCK_MESSAGE) {
+        return this.$t('auth.loginTemporarilyLocked')
+      }
+
+      return this.$t('auth.loginFailed')
+    },
+
     async handleLogin() {
       this.isLoading = true
       this.error = ''
@@ -112,8 +147,7 @@ export default defineComponent({
       if (success) {
         this.$router.push('/')
       } else {
-        // Generische Fehlermeldung ohne spezifischen Grund
-        this.error = this.$t('auth.loginFailed')
+        this.error = this.getLoginErrorMessage()
       }
 
       this.isLoading = false

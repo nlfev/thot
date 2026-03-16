@@ -115,6 +115,10 @@ Notes:
 - `otp_code` is required when OTP is enabled for the user.
 - `otp_code` is also required for users with role `support` or `admin`.
 - On success, response contains `access_token` and `token_type`.
+- Login lock behavior after failed attempts is configured via backend `.env`:
+  - `GRACE_PERIOD_MINUTES_3_ATTEMPTS` applies from 3 failed logins.
+  - `GRACE_PERIOD_MINUTES_5_ATTEMPTS` applies from 5 failed logins.
+  - During active grace period, backend returns: `Login temporarily locked. Please try again later`.
 
 ### 2a. Registration Behavior
 - Username rules for `POST /api/v1/auth/register`:

@@ -3,10 +3,11 @@ Tests for User Service
 """
 
 import pytest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from app.services import UserService
 from app.models import User, Role, UserRole
 from app.utils import verify_password, hash_password
+from config import config
 import uuid
 
 
@@ -259,3 +260,156 @@ def test_removed_role_cannot_be_reassigned(db, setup_roles):
     )
     assert reassigned is None
     assert err == "Role assignment was previously removed and cannot be reactivated"
+
+
+def test_authenticate_user_first_two_failed_logins_return_invalid_credentials(
+    db,
+    setup_roles,
+    monkeypatch,
+):
+    """The first two failed login attempts should still return the generic invalid-credentials message."""
+    monkeypatch.setattr(type(config), "GRACE_PERIOD_MINUTES_3_ATTEMPTS", 5)
+    monkeypatch.setattr(type(config), "GRACE_PERIOD_MINUTES_5_ATTEMPTS", 10)
+
+    UserService.create_user(
+        db=db,
+        username="graceuser2",
+        email="graceuser2@example.com",
+        password="TestPassword123!",
+        is_first_user=False,
+    )
+
+    first_user, first_error = UserService.authenticate_user(
+        db=db,
+        username="graceuser2",
+        password="WrongPassword123!",
+    )
+    second_user, second_error = UserService.authenticate_user(
+        db=db,
+        username="graceuser2",
+        password="WrongPassword123!",
+    )
+
+    assert first_user is None
+    assert first_error == "Invalid username or password"
+    assert second_user is None
+    assert second_error == "Invalid username or password"
+
+    user_from_db = UserService.get_user_by_username(db, "graceuser2")
+    assert user_from_db.unsuccessful_logins == 2
+
+
+def test_authenticate_user_third_failed_login_returns_temporary_lock(
+    db,
+    setup_roles,
+    monkeypatch,
+):
+    """The third failed login attempt should activate the grace period immediately."""
+    monkeypatch.setattr(type(config), "GRACE_PERIOD_MINUTES_3_ATTEMPTS", 5)
+    monkeypatch.setattr(type(config), "GRACE_PERIOD_MINUTES_5_ATTEMPTS", 10)
+
+    UserService.create_user(
+        db=db,
+        username="graceuser3",
+        email="graceuser3@example.com",
+        password="TestPassword123!",
+        is_first_user=False,
+    )
+
+    for _ in range(2):
+        UserService.authenticate_user(
+            db=db,
+            username="graceuser3",
+            password="WrongPassword123!",
+        )
+
+    authenticated_user, error = UserService.authenticate_user(
+        db=db,
+        username="graceuser3",
+        password="WrongPassword123!",
+    )
+
+    assert authenticated_user is None
+    assert error == "Login temporarily locked. Please try again later"
+
+    user_from_db = UserService.get_user_by_username(db, "graceuser3")
+    assert user_from_db.unsuccessful_logins == 3
+
+
+def test_authenticate_user_fourth_failed_login_stays_temporarily_locked(
+    db,
+    setup_roles,
+    monkeypatch,
+):
+    """The fourth failed login attempt should remain blocked by the active grace period."""
+    monkeypatch.setattr(type(config), "GRACE_PERIOD_MINUTES_3_ATTEMPTS", 5)
+    monkeypatch.setattr(type(config), "GRACE_PERIOD_MINUTES_5_ATTEMPTS", 10)
+
+    UserService.create_user(
+        db=db,
+        username="graceuser4",
+        email="graceuser4@example.com",
+        password="TestPassword123!",
+        is_first_user=False,
+    )
+
+    for _ in range(3):
+        UserService.authenticate_user(
+            db=db,
+            username="graceuser4",
+            password="WrongPassword123!",
+        )
+
+    authenticated_user, error = UserService.authenticate_user(
+        db=db,
+        username="graceuser4",
+        password="WrongPassword123!",
+    )
+
+    assert authenticated_user is None
+    assert error == "Login temporarily locked. Please try again later"
+
+    user_from_db = UserService.get_user_by_username(db, "graceuser4")
+    assert user_from_db.unsuccessful_logins == 3
+
+
+def test_authenticate_user_compares_grace_period_in_same_timezone(
+    db,
+    setup_roles,
+    monkeypatch,
+):
+    """A stored timestamp with +01:00 offset must still be compared correctly against UTC now."""
+    monkeypatch.setattr(type(config), "GRACE_PERIOD_MINUTES_3_ATTEMPTS", 5)
+
+    UserService.create_user(
+        db=db,
+        username="timezoneuser",
+        email="timezoneuser@example.com",
+        password="TestPassword123!",
+        is_first_user=False,
+    )
+
+    user_in_db = UserService.get_user_by_username(db, "timezoneuser")
+    user_in_db.unsuccessful_logins = 3
+    user_in_db.timestamp_last_successful_login = datetime.now(
+        timezone(timedelta(hours=1))
+    )
+    db.commit()
+
+    authenticated_user, error = UserService.authenticate_user(
+        db=db,
+        username="timezoneuser",
+        password="TestPassword123!",
+    )
+
+    assert authenticated_user is None
+    assert error == "Login temporarily locked. Please try again later"
+
+
+def test_normalize_to_utc_treats_naive_timestamp_as_utc():
+    """Naive datetimes should be interpreted as UTC to avoid mixed-type comparisons."""
+    naive_value = datetime(2026, 3, 16, 10, 30, 0)
+
+    normalized = UserService._normalize_to_utc(naive_value)
+
+    assert normalized == datetime(2026, 3, 16, 10, 30, 0, tzinfo=timezone.utc)
