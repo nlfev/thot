@@ -18,6 +18,7 @@ from app.utils.public_links import (
     encode_uuid_to_base62,
     generate_qr_code_base64,
 )
+from config import config
 
 router = APIRouter(
     prefix="/public-links",
@@ -54,7 +55,8 @@ async def get_record_qr_code(
 
     public_url = build_record_public_url(record.id)
     payload = build_record_qr_payload(record.signature, public_url)
-    qr_code = generate_qr_code_base64(payload=payload, target_size_mm=QR_CODE_SIZE_MM)
+    logo_path = config.get_qr_code_logo_path()
+    qr_code = generate_qr_code_base64(payload=payload, target_size_mm=QR_CODE_SIZE_MM, logo_path=logo_path)
 
     return {
         "record_id": str(record.id),
