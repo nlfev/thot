@@ -75,6 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       total: ${{ steps.frontend-coverage.outputs.total }}
+
     defaults:
       run:
         working-directory: frontend
@@ -100,7 +101,7 @@ jobs:
             --reporter=junit \
             --outputFile=test-results/frontend-vitest.xml \
             --coverage
-
+            
       - name: Publish frontend test results
         if: always()
         uses: EnricoMi/publish-unit-test-result-action@v2
