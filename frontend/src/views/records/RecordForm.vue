@@ -80,6 +80,30 @@
       </div>
 
       <div class="form-group">
+        <label for="signature2">{{ $t('records.signature2') }}</label>
+        <input
+          id="signature2"
+          v-model="form.signature2"
+          type="text"
+          class="form-control"
+          :placeholder="$t('records.signature2Placeholder')"
+          :readonly="isReadOnlyMode"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="subtitle">{{ $t('records.subtitle') }}</label>
+        <input
+          id="subtitle"
+          v-model="form.subtitle"
+          type="text"
+          class="form-control"
+          :placeholder="$t('records.subtitlePlaceholder')"
+          :readonly="isReadOnlyMode"
+        />
+      </div>
+
+      <div class="form-group">
         <label for="description">{{ $t('records.description') }}</label>
         <textarea
           id="description"
@@ -101,6 +125,158 @@
           :readonly="isReadOnlyMode"
           rows="3"
         />
+      </div>
+
+      <div class="form-row three-columns">
+        <div class="form-group">
+          <label for="year">{{ $t('records.year') }}</label>
+          <input
+            id="year"
+            v-model="form.year"
+            type="text"
+            class="form-control"
+            :placeholder="$t('records.yearPlaceholder')"
+            :readonly="isReadOnlyMode"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="isbn">{{ $t('records.isbn') }}</label>
+          <input
+            id="isbn"
+            v-model="form.isbn"
+            type="text"
+            class="form-control"
+            :placeholder="$t('records.isbnPlaceholder')"
+            :readonly="isReadOnlyMode"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="number_pages">{{ $t('records.numberPages') }}</label>
+          <input
+            id="number_pages"
+            v-model="form.number_pages"
+            type="text"
+            class="form-control"
+            :placeholder="$t('records.numberPagesPlaceholder')"
+            :readonly="isReadOnlyMode"
+          />
+        </div>
+      </div>
+
+      <div class="form-row three-columns">
+        <div class="form-group">
+          <label for="edition">{{ $t('records.edition') }}</label>
+          <input
+            id="edition"
+            v-model="form.edition"
+            type="text"
+            class="form-control"
+            :placeholder="$t('records.editionPlaceholder')"
+            :readonly="isReadOnlyMode"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="reihe">{{ $t('records.reihe') }}</label>
+          <input
+            id="reihe"
+            v-model="form.reihe"
+            type="text"
+            class="form-control"
+            :placeholder="$t('records.reihePlaceholder')"
+            :readonly="isReadOnlyMode"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="volume">{{ $t('records.volume') }}</label>
+          <input
+            id="volume"
+            v-model="form.volume"
+            type="text"
+            class="form-control"
+            :placeholder="$t('records.volumePlaceholder')"
+            :readonly="isReadOnlyMode"
+          />
+        </div>
+      </div>
+
+      <div class="form-row two-columns">
+        <div class="form-group">
+          <label for="jahrgang">{{ $t('records.jahrgang') }}</label>
+          <input
+            id="jahrgang"
+            v-model="form.jahrgang"
+            type="text"
+            class="form-control"
+            :placeholder="$t('records.jahrgangPlaceholder')"
+            :readonly="isReadOnlyMode"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="bibl_nr">{{ $t('records.biblNr') }}</label>
+          <input
+            id="bibl_nr"
+            v-model="form.bibl_nr"
+            type="text"
+            class="form-control"
+            :placeholder="$t('records.biblNrPlaceholder')"
+            :readonly="isReadOnlyMode"
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="enter_information">{{ $t('records.enterInformation') }}</label>
+        <textarea
+          id="enter_information"
+          v-model="form.enter_information"
+          class="form-control"
+          :placeholder="$t('records.enterInformationPlaceholder')"
+          :readonly="isReadOnlyMode"
+          rows="3"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="indecies">{{ $t('records.indecies') }}</label>
+        <textarea
+          id="indecies"
+          v-model="form.indecies"
+          class="form-control"
+          :placeholder="$t('records.indeciesPlaceholder')"
+          :readonly="isReadOnlyMode"
+          rows="3"
+        />
+      </div>
+
+      <div class="form-row two-columns">
+        <div class="form-group">
+          <label for="enter_date">{{ $t('records.enterDate') }}</label>
+          <input
+            id="enter_date"
+            v-model="form.enter_date"
+            type="date"
+            class="form-control"
+            :readonly="isReadOnlyMode"
+            :disabled="isReadOnlyMode"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="sort_out_date">{{ $t('records.sortOutDate') }}</label>
+          <input
+            id="sort_out_date"
+            v-model="form.sort_out_date"
+            type="date"
+            class="form-control"
+            :readonly="isReadOnlyMode"
+            :disabled="isReadOnlyMode"
+          />
+        </div>
       </div>
 
       <div class="form-group">
@@ -163,6 +339,85 @@
         </div>
       </div>
 
+      <div class="form-row two-columns">
+        <div class="form-group">
+          <label for="record_condition">{{ $t('records.recordCondition') }}</label>
+          <select
+            id="record_condition"
+            v-model="form.record_condition_id"
+            class="form-control"
+            :disabled="isReadOnlyMode"
+          >
+            <option value="">{{ $t('records.selectRecordCondition') }}</option>
+            <option v-for="item in recordConditions" :key="item.id" :value="item.id">
+              {{ item.condition }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="loantype">{{ $t('records.loanType') }}</label>
+          <select
+            id="loantype"
+            v-model="form.loantype_id"
+            class="form-control"
+            :disabled="isReadOnlyMode"
+          >
+            <option value="">{{ $t('records.selectLoanType') }}</option>
+            <option v-for="item in loanTypes" :key="item.id" :value="item.id">
+              {{ item.loan }}{{ item.subtype ? ` (${item.subtype})` : '' }}
+            </option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row three-columns">
+        <div class="form-group">
+          <label for="lettering">{{ $t('records.lettering') }}</label>
+          <select
+            id="lettering"
+            v-model="form.lettering_id"
+            class="form-control"
+            :disabled="isReadOnlyMode"
+          >
+            <option value="">{{ $t('records.selectLettering') }}</option>
+            <option v-for="item in letterings" :key="item.id" :value="item.id">
+              {{ item.lettering }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="publicationtype">{{ $t('records.publicationType') }}</label>
+          <select
+            id="publicationtype"
+            v-model="form.publicationtype_id"
+            class="form-control"
+            :disabled="isReadOnlyMode"
+          >
+            <option value="">{{ $t('records.selectPublicationType') }}</option>
+            <option v-for="item in publicationTypes" :key="item.id" :value="item.id">
+              {{ item.publicationtype }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="publisher">{{ $t('records.publisher') }}</label>
+          <select
+            id="publisher"
+            v-model="form.publisher_id"
+            class="form-control"
+            :disabled="isReadOnlyMode"
+          >
+            <option value="">{{ $t('records.selectPublisher') }}</option>
+            <option v-for="item in publishers" :key="item.id" :value="item.id">
+              {{ item.companyname }}{{ item.town ? ` (${item.town})` : '' }}
+            </option>
+          </select>
+        </div>
+      </div>
+
       <div class="form-actions">
         <button v-if="canEditRecord" type="submit" class="btn btn-primary" :disabled="submitting">
           {{ submitting ? $t('common.saving') : $t('common.save') }}
@@ -191,15 +446,39 @@ export default defineComponent({
       form: {
         title: '',
         signature: '',
+        signature2: '',
+        subtitle: '',
         description: '',
         comment: '',
+        year: '',
+        isbn: '',
+        number_pages: '',
+        edition: '',
+        reihe: '',
+        volume: '',
+        jahrgang: '',
+        enter_information: '',
+        indecies: '',
+        enter_date: '',
+        sort_out_date: '',
+        bibl_nr: '',
         keywords_names: '',
         keywords_locations: '',
         restriction_id: '',
         workstatus_id: '',
+        record_condition_id: '',
+        loantype_id: '',
+        lettering_id: '',
+        publicationtype_id: '',
+        publisher_id: '',
       },
       restrictions: [],
       workstatuses: [],
+      loanTypes: [],
+      recordConditions: [],
+      letterings: [],
+      publicationTypes: [],
+      publishers: [],
       loading: false,
       submitting: false,
       error: null,
@@ -233,13 +512,31 @@ export default defineComponent({
   methods: {
     async loadMetadata() {
       try {
-        const [restrictionsResponse, workstatusResponse] = await Promise.all([
+        const [
+          restrictionsResponse,
+          workstatusResponse,
+          loanTypesResponse,
+          recordConditionsResponse,
+          letteringsResponse,
+          publicationTypesResponse,
+          publishersResponse,
+        ] = await Promise.all([
           recordService.getRestrictions(),
           recordService.getWorkStatus(),
+          recordService.listLoanTypes(),
+          recordService.listRecordConditions(),
+          recordService.listLetterings(),
+          recordService.listPublicationTypes(),
+          recordService.listPublishers({ limit: 500 }),
         ])
 
         this.restrictions = restrictionsResponse.items || []
         this.workstatuses = workstatusResponse.items || []
+        this.loanTypes = loanTypesResponse.items || []
+        this.recordConditions = recordConditionsResponse.items || []
+        this.letterings = letteringsResponse.items || []
+        this.publicationTypes = publicationTypesResponse.items || []
+        this.publishers = publishersResponse.items || []
 
         // Set default values if creating new record
         if (!this.isEditMode && this.restrictions.length > 0) {
@@ -271,12 +568,31 @@ export default defineComponent({
         this.form = {
           title: record.title || '',
           signature: record.signature || '',
+          signature2: record.signature2 || '',
+          subtitle: record.subtitle || '',
           description: record.description || '',
           comment: record.comment || '',
+          year: record.year || '',
+          isbn: record.isbn || '',
+          number_pages: record.number_pages || '',
+          edition: record.edition || '',
+          reihe: record.reihe || '',
+          volume: record.volume || '',
+          jahrgang: record.jahrgang || '',
+          enter_information: record.enter_information || '',
+          indecies: record.indecies || '',
+          enter_date: record.enter_date || '',
+          sort_out_date: record.sort_out_date || '',
+          bibl_nr: record.bibl_nr || '',
           keywords_names: record.keywords_names || '',
           keywords_locations: record.keywords_locations || '',
           restriction_id: record.restriction_id || '',
           workstatus_id: record.workstatus_id || '',
+          record_condition_id: record.record_condition_id || '',
+          loantype_id: record.loantype_id || '',
+          lettering_id: record.lettering_id || '',
+          publicationtype_id: record.publicationtype_id || '',
+          publisher_id: record.publisher_id || '',
         }
       } catch (err) {
         this.error = err.message || this.$t('records.loadError')
@@ -299,12 +615,31 @@ export default defineComponent({
         const data = {
           title: this.form.title,
           signature: this.form.signature || null,
+          signature2: this.form.signature2 || null,
+          subtitle: this.form.subtitle || null,
           description: this.form.description || null,
           comment: this.form.comment || null,
+          year: this.form.year || null,
+          isbn: this.form.isbn || null,
+          number_pages: this.form.number_pages || null,
+          edition: this.form.edition || null,
+          reihe: this.form.reihe || null,
+          volume: this.form.volume || null,
+          jahrgang: this.form.jahrgang || null,
+          enter_information: this.form.enter_information || null,
+          indecies: this.form.indecies || null,
+          enter_date: this.form.enter_date || null,
+          sort_out_date: this.form.sort_out_date || null,
+          bibl_nr: this.form.bibl_nr || null,
           keywords_names: this.form.keywords_names || '',
           keywords_locations: this.form.keywords_locations || '',
           restriction_id: this.form.restriction_id,
           workstatus_id: this.form.workstatus_id,
+          record_condition_id: this.form.record_condition_id || null,
+          loantype_id: this.form.loantype_id || null,
+          lettering_id: this.form.lettering_id || null,
+          publicationtype_id: this.form.publicationtype_id || null,
+          publisher_id: this.form.publisher_id || null,
         }
 
         if (this.isEditMode) {
@@ -417,6 +752,20 @@ export default defineComponent({
   margin-bottom: 20px;
 }
 
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.two-columns {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.three-columns {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
 .form-group label {
   display: block;
   font-weight: 500;
@@ -446,12 +795,6 @@ export default defineComponent({
 textarea.form-control {
   resize: vertical;
   min-height: 80px;
-}
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
 }
 
 .form-actions {

@@ -254,7 +254,7 @@ async def list_publishers(
     current_user=Depends(get_current_user),
     search: Optional[str] = Query(None),
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=500),
 ):
     query = db.query(Publisher).filter(Publisher.active == True)
     if search:

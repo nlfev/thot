@@ -130,6 +130,66 @@ export const recordService = {
   },
 
   /**
+   * Get loan types for record metadata selection
+   */
+  async listLoanTypes() {
+    try {
+      const response = await api.get('/library-metadata/loantypes')
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Get publication types for record metadata selection
+   */
+  async listPublicationTypes() {
+    try {
+      const response = await api.get('/library-metadata/publicationtypes')
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Get record conditions for record metadata selection
+   */
+  async listRecordConditions() {
+    try {
+      const response = await api.get('/library-metadata/record-conditions')
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Get lettering options for record metadata selection
+   */
+  async listLetterings() {
+    try {
+      const response = await api.get('/library-metadata/letterings')
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Get publishers for record metadata selection
+   */
+  async listPublishers(params = {}) {
+    try {
+      const response = await api.get('/library-metadata/publishers', { params })
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
    * Download combined PDF with all pages of a record
    */
   async downloadCombinedPdf(recordId) {
