@@ -14,14 +14,21 @@ from sqlalchemy import and_, or_, func
 from pypdf import PdfReader, PdfWriter
 
 from app.database import get_db
-from app.models import Record, Restriction, WorkStatus, KeywordName, KeywordLocation, Page
+from app.models import Record, Restriction, WorkStatus, KeywordName, KeywordLocation, Page, RecordAuthor, Author, AuthorType
 from app.schemas import (
     RecordCreateRequest,
     RecordUpdateRequest,
     RecordResponse,
+    RecordDetailResponse,
     RecordListResponse,
     RecordListItemResponse,
     RecordReducedResponse,
+    RecordAuthorResponse,
+    RecordConditionResponse,
+    LoanTypeResponse,
+    LetteringResponse,
+    PublicationTypeResponse,
+    PublisherResponse,
 )
 from app.utils.auth import get_current_user
 from app.utils.phonetics import generate_phonetic_codes
@@ -99,6 +106,42 @@ def process_keywords(db: Session, keywords_string: str, keyword_model):
     return keywords
 
 
+def sync_record_authors(db: Session, record: Record, assignments, current_user_id):
+    """Replace record-author relations with submitted assignments in stable order."""
+    for existing in list(record.record_authors):
+        db.delete(existing)
+    db.flush()
+
+    if not assignments:
+        return
+
+    for position, assignment in enumerate(assignments, start=1):
+        author = db.query(Author).filter(Author.id == assignment.author_id, Author.active == True).first()
+        if not author:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Author not found: {assignment.author_id}",
+            )
+
+        authortype_id = assignment.authortype_id
+        if authortype_id is not None:
+            authortype = db.query(AuthorType).filter(AuthorType.id == authortype_id).first()
+            if not authortype:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"AuthorType not found: {authortype_id}",
+                )
+
+        relation = RecordAuthor(
+            record_id=record.id,
+            author_id=assignment.author_id,
+            authortype_id=authortype_id,
+            order=assignment.order if assignment.order is not None else position,
+            created_by=current_user_id,
+        )
+        db.add(relation)
+
+
 def parse_optional_date(value: Optional[str], field_name: str):
     """Parse optional ISO date string (YYYY-MM-DD) for date columns."""
     if value in (None, ""):
@@ -138,6 +181,8 @@ async def list_records(
     query = query.options(
         joinedload(Record.keywords_names),
         joinedload(Record.keywords_locations),
+        joinedload(Record.record_authors).joinedload(RecordAuthor.author),
+        joinedload(Record.publisher),
         joinedload(Record.restriction),
         joinedload(Record.workstatus)
     )
@@ -192,6 +237,8 @@ async def list_records(
                 workstatus=record.workstatus.status if record.workstatus else None,
                 keywords_names=", ".join(sorted([kw.name for kw in record.keywords_names])) if record.keywords_names else "",
                 keywords_locations=", ".join(sorted([kw.name for kw in record.keywords_locations])) if record.keywords_locations else "",
+                authors="; ".join([f"{ra.author.last_name}{', ' + ra.author.first_name if ra.author.first_name else ''}" for ra in sorted(record.record_authors, key=lambda x: x.order or 0)] if record.record_authors else []),
+                publisher=f"{record.publisher.companyname}{' (' + record.publisher.town + ')' if record.publisher.town else ''}" if record.publisher else "",
                 created_on=record.created_on,
                 created_by=record.created_by,
                 page_count=db.query(func.count(Page.id)).filter(
@@ -227,17 +274,32 @@ async def list_reduced_records(
     return [RecordReducedResponse(id=record.id, name=record.title, signature=record.signature) for record in records]
 
 
-@router.get("/{record_id}", response_model=RecordResponse)
+@router.get("/{record_id}", response_model=RecordDetailResponse)
 async def get_record(
     record_id: str,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
     """
-    Get a specific record by ID
+    Get a specific record by ID with all relationships (keywords, authors, publisher, etc.)
     """
     parsed_record_id = parse_uuid_value(record_id, "record_id")
-    record = db.query(Record).filter(Record.id == parsed_record_id, Record.active == True).first()
+    record = (
+        db.query(Record)
+        .options(
+            joinedload(Record.keywords_names),
+            joinedload(Record.keywords_locations),
+            joinedload(Record.record_authors).joinedload(RecordAuthor.author),
+            joinedload(Record.record_authors).joinedload(RecordAuthor.authortype),
+            joinedload(Record.record_condition),
+            joinedload(Record.loantype),
+            joinedload(Record.lettering),
+            joinedload(Record.publicationtype),
+            joinedload(Record.publisher),
+        )
+        .filter(Record.id == parsed_record_id, Record.active == True)
+        .first()
+    )
 
     if not record:
         raise HTTPException(
@@ -245,7 +307,18 @@ async def get_record(
             detail="Record not found"
         )
 
-    return RecordResponse.model_validate(record, from_attributes=True)
+    base = RecordResponse.model_validate(record, from_attributes=True)
+    return RecordDetailResponse(
+        **base.model_dump(),
+        keywords_names=", ".join(sorted([kw.name for kw in record.keywords_names])) if record.keywords_names else "",
+        keywords_locations=", ".join(sorted([kw.name for kw in record.keywords_locations])) if record.keywords_locations else "",
+        record_condition=RecordConditionResponse.model_validate(record.record_condition, from_attributes=True) if record.record_condition else None,
+        loantype=LoanTypeResponse.model_validate(record.loantype, from_attributes=True) if record.loantype else None,
+        lettering=LetteringResponse.model_validate(record.lettering, from_attributes=True) if record.lettering else None,
+        publicationtype=PublicationTypeResponse.model_validate(record.publicationtype, from_attributes=True) if record.publicationtype else None,
+        publisher=PublisherResponse.model_validate(record.publisher, from_attributes=True) if record.publisher else None,
+        record_authors=[RecordAuthorResponse.model_validate(ra, from_attributes=True) for ra in record.record_authors],
+    )
 
 
 @router.get("/{record_id}/download-combined-pdf")
@@ -437,6 +510,9 @@ async def create_record(
             keywords_locations = process_keywords(db, data.keywords_locations, KeywordLocation)
             record.keywords_locations = keywords_locations
 
+        if data.record_authors is not None:
+            sync_record_authors(db, record, data.record_authors, current_user.id)
+
         db.commit()
         db.refresh(record)
 
@@ -536,6 +612,9 @@ async def update_record(
         if "keywords_locations" in data_dict:
             keywords_locations = process_keywords(db, data_dict.get("keywords_locations"), KeywordLocation)
             record.keywords_locations = keywords_locations
+
+        if "record_authors" in data_dict:
+            sync_record_authors(db, record, data.record_authors, current_user.id)
 
         db.commit()
         db.refresh(record)

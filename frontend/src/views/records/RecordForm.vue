@@ -305,6 +305,86 @@
         <small class="form-text">{{ $t('records.keywordsHelp') }}</small>
       </div>
 
+      <div class="form-group">
+        <label>{{ $t('records.authors') }}</label>
+        <div v-if="record_authors.length === 0" class="form-text text-muted">
+          {{ $t('records.noAuthors') }}
+        </div>
+        <table v-else class="authors-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>{{ $t('records.authorName') }}</th>
+              <th>{{ $t('records.authorType') }}</th>
+              <th v-if="canEditRecord"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(ra, index) in record_authors" :key="ra.id || `${ra.author_id}-${index}`">
+              <td>{{ index + 1 }}</td>
+              <td>
+                <select
+                  v-if="canEditRecord"
+                  v-model="ra.author_id"
+                  class="form-control"
+                >
+                  <option value="">{{ $t('records.selectAuthor') }}</option>
+                  <option v-for="author in authors" :key="author.id" :value="String(author.id)">
+                    {{ formatAuthorLabel(author) }}
+                  </option>
+                </select>
+                <span v-else>{{ getAuthorDisplayName(ra) }}</span>
+              </td>
+              <td>
+                <select
+                  v-if="canEditRecord"
+                  v-model="ra.authortype_id"
+                  class="form-control"
+                >
+                  <option value="">{{ $t('records.selectAuthorType') }}</option>
+                  <option v-for="item in authorTypes" :key="item.id" :value="String(item.id)">
+                    {{ item.authortype }}
+                  </option>
+                </select>
+                <span v-else>{{ getAuthorTypeDisplayName(ra) }}</span>
+              </td>
+              <td v-if="canEditRecord" class="authors-actions-cell">
+                <button type="button" class="btn btn-danger btn-small" @click="removeAuthorRow(index)">
+                  {{ $t('common.delete') }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div v-if="canEditRecord" class="authors-actions">
+          <button type="button" class="btn btn-secondary" @click="addAuthorRow">
+            {{ $t('records.addAuthor') }}
+          </button>
+        </div>
+
+        <div v-if="canEditRecord" class="author-create-box">
+          <div class="author-create-title">{{ $t('records.createAuthor') }}</div>
+          <div class="form-row three-columns">
+            <div class="form-group">
+              <label for="author_title">{{ $t('records.authorTitle') }}</label>
+              <input id="author_title" v-model="newAuthor.title" type="text" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label for="author_last_name">{{ $t('records.authorLastName') }} <span class="required">*</span></label>
+              <input id="author_last_name" v-model="newAuthor.last_name" type="text" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label for="author_first_name">{{ $t('records.authorFirstName') }}</label>
+              <input id="author_first_name" v-model="newAuthor.first_name" type="text" class="form-control" />
+            </div>
+          </div>
+          <button type="button" class="btn btn-info" @click="createAuthor" :disabled="creatingAuthor">
+            {{ creatingAuthor ? $t('common.saving') : $t('records.createAuthor') }}
+          </button>
+        </div>
+      </div>
+
       <div class="form-row">
         <div class="form-group">
           <label for="restriction">{{ $t('records.restriction') }} <span class="required">*</span></label>
@@ -316,7 +396,7 @@
             required
           >
             <option value="">{{ $t('records.selectRestriction') }}</option>
-            <option v-for="restriction in restrictions" :key="restriction.id" :value="restriction.id">
+            <option v-for="restriction in restrictions" :key="restriction.id" :value="String(restriction.id)">
               {{ restriction.name }}
             </option>
           </select>
@@ -332,7 +412,7 @@
             required
           >
             <option value="">{{ $t('records.selectWorkStatus') }}</option>
-            <option v-for="status in workstatuses" :key="status.id" :value="status.id">
+            <option v-for="status in workstatuses" :key="status.id" :value="String(status.id)">
               {{ status.status }} {{ status.area ? `(${status.area})` : '' }}
             </option>
           </select>
@@ -349,7 +429,7 @@
             :disabled="isReadOnlyMode"
           >
             <option value="">{{ $t('records.selectRecordCondition') }}</option>
-            <option v-for="item in recordConditions" :key="item.id" :value="item.id">
+            <option v-for="item in recordConditions" :key="item.id" :value="String(item.id)">
               {{ item.condition }}
             </option>
           </select>
@@ -364,7 +444,7 @@
             :disabled="isReadOnlyMode"
           >
             <option value="">{{ $t('records.selectLoanType') }}</option>
-            <option v-for="item in loanTypes" :key="item.id" :value="item.id">
+            <option v-for="item in loanTypes" :key="item.id" :value="String(item.id)">
               {{ item.loan }}{{ item.subtype ? ` (${item.subtype})` : '' }}
             </option>
           </select>
@@ -381,7 +461,7 @@
             :disabled="isReadOnlyMode"
           >
             <option value="">{{ $t('records.selectLettering') }}</option>
-            <option v-for="item in letterings" :key="item.id" :value="item.id">
+            <option v-for="item in letterings" :key="item.id" :value="String(item.id)">
               {{ item.lettering }}
             </option>
           </select>
@@ -396,7 +476,7 @@
             :disabled="isReadOnlyMode"
           >
             <option value="">{{ $t('records.selectPublicationType') }}</option>
-            <option v-for="item in publicationTypes" :key="item.id" :value="item.id">
+            <option v-for="item in publicationTypes" :key="item.id" :value="String(item.id)">
               {{ item.publicationtype }}
             </option>
           </select>
@@ -411,7 +491,7 @@
             :disabled="isReadOnlyMode"
           >
             <option value="">{{ $t('records.selectPublisher') }}</option>
-            <option v-for="item in publishers" :key="item.id" :value="item.id">
+            <option v-for="item in publishers" :key="item.id" :value="String(item.id)">
               {{ item.companyname }}{{ item.town ? ` (${item.town})` : '' }}
             </option>
           </select>
@@ -479,14 +559,23 @@ export default defineComponent({
       letterings: [],
       publicationTypes: [],
       publishers: [],
+      authorTypes: [],
+      authors: [],
       loading: false,
       submitting: false,
+      creatingAuthor: false,
       error: null,
       successMessage: null,
       showQrCode: false,
       qrLoading: false,
       qrError: null,
       qrData: null,
+      record_authors: [],
+      newAuthor: {
+        title: '',
+        last_name: '',
+        first_name: '',
+      },
     }
   },
   computed: {
@@ -503,8 +592,8 @@ export default defineComponent({
       return this.isEditMode && !this.canEditRecord
     },
   },
-  mounted() {
-    this.loadMetadata()
+  async mounted() {
+    await this.loadMetadata()
     if (this.isEditMode) {
       this.loadRecord()
     }
@@ -537,6 +626,20 @@ export default defineComponent({
         this.letterings = letteringsResponse.items || []
         this.publicationTypes = publicationTypesResponse.items || []
         this.publishers = publishersResponse.items || []
+
+        // Load author metadata separately so a failure there does not block other fields.
+        try {
+          const [authorTypesResponse, authorsResponse] = await Promise.all([
+            recordService.listAuthorTypes(),
+            recordService.listAuthors({ limit: 200 }),
+          ])
+          this.authorTypes = authorTypesResponse.items || []
+          this.authors = authorsResponse.items || []
+        } catch (authorErr) {
+          console.error('Error loading author metadata:', authorErr)
+          this.authorTypes = []
+          this.authors = []
+        }
 
         // Set default values if creating new record
         if (!this.isEditMode && this.restrictions.length > 0) {
@@ -594,6 +697,14 @@ export default defineComponent({
           publicationtype_id: record.publicationtype_id || '',
           publisher_id: record.publisher_id || '',
         }
+        this.record_authors = (record.record_authors || []).map((ra, index) => ({
+          id: ra.id,
+          author_id: ra.author_id || ra.author?.id || '',
+          authortype_id: ra.authortype_id || ra.authortype?.id || '',
+          order: ra.order ?? index + 1,
+          author: ra.author || null,
+          authortype: ra.authortype || null,
+        }))
       } catch (err) {
         this.error = err.message || this.$t('records.loadError')
         console.error('Error loading record:', err)
@@ -640,6 +751,13 @@ export default defineComponent({
           lettering_id: this.form.lettering_id || null,
           publicationtype_id: this.form.publicationtype_id || null,
           publisher_id: this.form.publisher_id || null,
+          record_authors: this.record_authors
+            .filter(row => row.author_id)
+            .map((row, index) => ({
+              author_id: row.author_id,
+              authortype_id: row.authortype_id || null,
+              order: index + 1,
+            })),
         }
 
         if (this.isEditMode) {
@@ -655,6 +773,86 @@ export default defineComponent({
         console.error('Error saving record:', err)
       } finally {
         this.submitting = false
+      }
+    },
+
+    addAuthorRow() {
+      this.record_authors.push({
+        author_id: '',
+        authortype_id: '',
+        order: this.record_authors.length + 1,
+      })
+    },
+
+    removeAuthorRow(index) {
+      this.record_authors.splice(index, 1)
+      this.record_authors.forEach((row, idx) => {
+        row.order = idx + 1
+      })
+    },
+
+    formatAuthorLabel(author) {
+      if (!author) {
+        return ''
+      }
+      const base = [author.last_name, author.first_name].filter(Boolean).join(', ')
+      return author.title ? `${base} (${author.title})` : base
+    },
+
+    getAuthorDisplayName(row) {
+      if (row.author) {
+        return this.formatAuthorLabel(row.author)
+      }
+      const author = this.authors.find(item => item.id === row.author_id)
+      return this.formatAuthorLabel(author)
+    },
+
+    getAuthorTypeDisplayName(row) {
+      if (row.authortype?.authortype) {
+        return row.authortype.authortype
+      }
+      const authorType = this.authorTypes.find(item => item.id === row.authortype_id)
+      return authorType?.authortype || ''
+    },
+
+    async createAuthor() {
+      const lastName = this.newAuthor.last_name?.trim()
+      if (!lastName) {
+        this.error = this.$t('records.authorLastNameRequired')
+        return
+      }
+
+      this.creatingAuthor = true
+      this.error = null
+      try {
+        const created = await recordService.createAuthor({
+          title: this.newAuthor.title?.trim() || null,
+          last_name: lastName,
+          first_name: this.newAuthor.first_name?.trim() || null,
+        })
+        this.authors.push(created)
+        this.authors.sort((a, b) => this.formatAuthorLabel(a).localeCompare(this.formatAuthorLabel(b)))
+
+        const firstEmpty = this.record_authors.find(row => !row.author_id)
+        if (firstEmpty) {
+          firstEmpty.author_id = created.id
+        } else {
+          this.record_authors.push({
+            author_id: created.id,
+            authortype_id: '',
+            order: this.record_authors.length + 1,
+          })
+        }
+
+        this.newAuthor = {
+          title: '',
+          last_name: '',
+          first_name: '',
+        }
+      } catch (err) {
+        this.error = err.message || err.detail || this.$t('records.saveError')
+      } finally {
+        this.creatingAuthor = false
       }
     },
 
@@ -744,6 +942,55 @@ export default defineComponent({
 .record-form {
   background: white;
   padding: 30px;
+
+  .authors-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+
+  .authors-table th,
+  .authors-table td {
+    border: 1px solid #ddd;
+    padding: 6px 10px;
+    text-align: left;
+  }
+
+  .authors-table th {
+    background: #f5f5f5;
+    font-weight: 600;
+  }
+
+  .authors-table tbody tr:nth-child(even) {
+    background: #fafafa;
+  }
+
+  .authors-actions {
+    margin-top: 10px;
+  }
+
+  .authors-actions-cell {
+    width: 1%;
+    white-space: nowrap;
+  }
+
+  .author-create-box {
+    margin-top: 16px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fafafa;
+  }
+
+  .author-create-title {
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .btn-small {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
   border: 1px solid #ddd;
   border-radius: 4px;
 }

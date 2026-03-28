@@ -190,6 +190,42 @@ export const recordService = {
   },
 
   /**
+   * Get author types for record author assignments
+   */
+  async listAuthorTypes() {
+    try {
+      const response = await api.get('/library-metadata/authortypes')
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Get authors for record author assignments
+   */
+  async listAuthors(params = {}) {
+    try {
+      const response = await api.get('/library-metadata/authors', { params })
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Create a new author
+   */
+  async createAuthor(data) {
+    try {
+      const response = await api.post('/library-metadata/authors', data)
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
    * Download combined PDF with all pages of a record
    */
   async downloadCombinedPdf(recordId) {
@@ -201,6 +237,24 @@ export const recordService = {
         blob: response.data,
         contentDisposition: response.headers['content-disposition'] || '',
       }
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Import records from an XLSX file (admin only)
+   */
+  async importRecordsXlsx(file) {
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await api.post('/admin/records-import/xlsx', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+      return response.data
     } catch (error) {
       throw error.response?.data || error
     }

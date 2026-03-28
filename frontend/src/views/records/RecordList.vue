@@ -104,6 +104,8 @@
           <tr>
             <th>{{ $t('records.columnTitle') }}</th>
             <th>{{ $t('records.signature') }}</th>
+            <th>{{ $t('records.authors') }}</th>
+            <th>{{ $t('records.publisher') }}</th>
             <th>{{ $t('records.keywordsNames') }}</th>
             <th>{{ $t('records.keywordsLocations') }}</th>
             <th>{{ $t('records.restriction') }}</th>
@@ -117,6 +119,8 @@
           <tr v-for="record in records" :key="record.id">
             <td>{{ record.title }}</td>
             <td>{{ record.signature || '-' }}</td>
+            <td class="authors-cell">{{ record.authors || '-' }}</td>
+            <td class="publisher-cell">{{ record.publisher || '-' }}</td>
             <td class="keywords-cell">
               <span v-if="record.keywords_names" class="keywords-tag">
                 {{ record.keywords_names }}
@@ -445,6 +449,16 @@ export default defineComponent({
 
 .keywords-cell {
   max-width: 200px;
+}
+
+.authors-cell {
+  max-width: 250px;
+  word-break: break-word;
+}
+
+.publisher-cell {
+  max-width: 180px;
+  word-break: break-word;
 }
 
 .keywords-tag {

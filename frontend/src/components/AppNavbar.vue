@@ -58,6 +58,9 @@
           <li v-if="authStore.hasRole('admin')">
             <router-link to="/admin/roles" @click="closeMenu">{{ t('nav.roles') }}</router-link>
           </li>
+          <li v-if="authStore.hasRole('admin')">
+            <router-link to="/admin/records-import" @click="closeMenu">{{ t('nav.recordImport') }}</router-link>
+          </li>
           <li><router-link to="/admin/data-maintenance" @click="closeMenu">{{ t('nav.dataMaintenance') }}</router-link></li>
         </ul>
       </li>

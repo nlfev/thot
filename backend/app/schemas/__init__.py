@@ -633,6 +633,7 @@ class RecordCreateRequest(RecordCreate):
 
     keywords_names: Optional[str] = Field(None, description="Comma-separated name keywords")
     keywords_locations: Optional[str] = Field(None, description="Comma-separated location keywords")
+    record_authors: Optional[List[RecordAuthorCreate]] = Field(None, description="Record-author assignments")
 
 
 class RecordUpdate(BaseModel):
@@ -670,6 +671,7 @@ class RecordUpdateRequest(RecordUpdate):
 
     keywords_names: Optional[str] = None
     keywords_locations: Optional[str] = None
+    record_authors: Optional[List[RecordAuthorCreate]] = None
 
 
 class RecordResponse(RecordBase, RecordBibliographicFields):
@@ -706,6 +708,8 @@ class RecordDetailResponse(RecordResponse):
     keywords_records: List[KeywordRecordResponse] = []
     languages: List[LanguageResponse] = []
     record_authors: List[RecordAuthorResponse] = []
+    keywords_names: str = ""
+    keywords_locations: str = ""
 
 
 class RecordListItemResponse(BaseModel):
@@ -722,6 +726,8 @@ class RecordListItemResponse(BaseModel):
     workstatus: Optional[str] = None
     keywords_names: str = ""
     keywords_locations: str = ""
+    authors: str = ""
+    publisher: str = ""
     created_on: Optional[datetime] = None
     created_by: Optional[UUID] = None
     page_count: int = 0
