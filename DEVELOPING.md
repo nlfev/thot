@@ -93,6 +93,89 @@ npm run dev
 # App: http://localhost:5173
 ```
 
+### 5. Run Complete Test Suite
+
+Run both test suites before committing changes.
+
+**Backend (FastAPI / pytest):**
+```bash
+cd backend
+npm run test
+```
+
+**Frontend (Vue / vitest, single run):**
+```bash
+cd frontend
+npm run test -- --run
+```
+
+Expected result for a healthy workspace:
+- Backend: all tests passed
+- Frontend: all tests passed
+
+### 6. OCR Troubleshooting (Windows)
+
+If OCR processing does not create a searchable file in `current_file`, check these common issues.
+
+1. `ocrmypdf` not found
+```bash
+ocrmypdf --version
+```
+Fix:
+- Install in backend venv: `pip install ocrmypdf`
+- Ensure Ghostscript is installed and available in PATH
+
+2. Tesseract not found
+```bash
+tesseract --version
+```
+Fix:
+- Install Tesseract (UB Mannheim build)
+- Add install folder to PATH (for example `C:\Program Files\Tesseract-OCR`)
+- Restart terminal/VS Code
+
+3. Missing Fraktur language (`deu_latf`)
+```bash
+tesseract --list-langs
+```
+Fix:
+- Install/add language data so `deu_latf` appears in the list
+
+4. Backend uses wrong OCR binary path
+```bash
+cd backend
+python -c "from config import config; print('ocrmypdf=', config.get_ocrmypdf_binary()); print('kraken=', config.get_kraken_binary())"
+```
+Fix:
+- Set `.env` values explicitly:
+  - `OCRMY_PDF_BIN=ocrmypdf`
+  - `KRAKEN_BIN=kraken`
+
+5. Strict OCR mode fails uploads
+Symptom:
+- Upload returns server error when OCR tools are not installed.
+
+Fix:
+- Use fallback mode in development: `OCR_PIPELINE_REQUIRED=false`
+- Use strict mode only when OCR stack is fully installed: `OCR_PIPELINE_REQUIRED=true`
+
+### 6.1 OCR Laufzeit-Logging
+
+Beim Upload von PDFs schreibt das Backend jetzt am Ende der OCR-Verarbeitung
+zusammenfassende Laufzeitinformationen in das Log.
+
+Neue Log-Zeilen:
+- Pro Datei: `Finished OCR pipeline. duration=...s ...`
+- Pro OCR-Job: `Completed OCR job. duration=...s ...`
+- Pro Upload-Batch: `Upload batch OCR complete. files=... duration=...s record_id=...`
+
+Beispiel (mehrseitiger Upload):
+```text
+Upload batch OCR complete. files=5 duration=312.4s record_id=6f9d...
+```
+
+Damit ist direkt sichtbar, wie viele Dateien verarbeitet wurden und wie lange der Batch insgesamt gedauert hat.
+
 ---
 
 ## Application Configuration
@@ -205,8 +288,15 @@ const newPage = await pageService.createPage(formData)
 Files are stored in the filesystem:
 ```
 backend/uploads/
-  └── {record_id}/
-      └── {page_id}.pdf
+  └── {record_signature_sanitized}/
+      ├── origin/
+      │   ├── Seite_yyyyMMdd_hhmmss.pdf
+      │   ├── Seite_1.pdf
+      │   └── ...
+      └── current/
+          ├── Seite_yyyyMMdd_hhmmss_current.pdf
+          ├── Seite_1_current.pdf
+          └── ...
 ```
 
 Configuration in `.env`:
@@ -215,7 +305,18 @@ UPLOAD_DIRECTORY=./uploads
 MAX_UPLOAD_SIZE=52428800  # 50MB in bytes
 ```
 
-The `location_file` field in the database stores the relative path: `{record_id}/{page_id}.pdf`
+Behavior:
+- `UPLOAD_DIRECTORY` defines the base directory for stored PDFs.
+- `MAX_UPLOAD_SIZE` defines the maximum allowed upload size in bytes and is configurable via `.env`.
+- The storage folder is created from the record signature after trimming and replacing whitespace with `_`.
+- Original uploaded/split files are stored under `origin/`.
+- OCR/searchable outputs are stored under `current/`.
+- Single-page uploads are stored as `Seite_yyyyMMdd_hhmmss.pdf` in `origin/`.
+- Multi-page uploads are split into individual PDFs. Each split page creates its own page entry and is stored as `Seite_1.pdf`, `Seite_2.pdf`, etc. in `origin/`.
+
+The `orgin_file`/`location_file` field stores the relative original path, for example: `{record_signature_sanitized}/origin/Seite_1.pdf`
+
+The `current_file` field stores the relative searchable path, for example: `{record_signature_sanitized}/current/Seite_1_current.pdf`
 
 #### Accessing Uploaded Files
 

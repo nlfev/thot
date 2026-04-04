@@ -119,6 +119,8 @@ async def get_current_user(
     FastAPI dependency for routes that require authentication
     """
     # Import here to avoid circular imports
+    from app.services.user_service import UserService
+    
     from app.models.role import Role
     from app.models.role_permission import RolePermission
     from app.models.user import User

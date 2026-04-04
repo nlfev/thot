@@ -413,3 +413,59 @@ def test_normalize_to_utc_treats_naive_timestamp_as_utc():
     normalized = UserService._normalize_to_utc(naive_value)
 
     assert normalized == datetime(2026, 3, 16, 10, 30, 0, tzinfo=timezone.utc)
+
+
+def test_user_is_active_and_locked():
+    """Test methods is_active and is_locked of the User model."""
+    user = User(
+        username="activeuser",
+        email="active@example.com",
+        hashed_password="irrelevant",
+        active=True
+    )
+    assert user.is_active() is True
+    assert user.is_locked() is False
+
+    user_inactive = User(
+        username="inactiveuser",
+        email="inactive@example.com",
+        hashed_password="irrelevant",
+        active=False
+    )
+    assert user_inactive.is_active() is False
+    assert user_inactive.is_locked() is True
+
+    def test_user_has_permission():
+        """Test has_permission method of the User model."""
+        from app.models import Role, Permission, RolePermission, UserRole
+        import uuid
+        # Erzeuge Permission
+        perm = Permission(id=uuid.uuid4(), name="edit", active=True)
+        # Erzeuge Role und verknüpfe Permission
+        role = Role(id=uuid.uuid4(), name="editor", active=True)
+        role_perm = RolePermission(id=uuid.uuid4(), role=role, permission=perm)
+        role.role_permissions = [role_perm]
+        # Erzeuge UserRole
+        user_role = UserRole(id=uuid.uuid4(), role=role, active=True)
+        # Erzeuge User
+        user = User(username="permuser", email="perm@example.com", hashed_password="irrelevant", active=True)
+        user.user_roles = [user_role]
+        assert user.has_permission("edit") is True
+        assert user.has_permission("delete") is False
+
+    def test_user_get_permissions():
+        """Test get_permissions method of the User model."""
+        from app.models import Role, Permission, RolePermission, UserRole
+        import uuid
+        perm1 = Permission(id=uuid.uuid4(), name="read", active=True)
+        perm2 = Permission(id=uuid.uuid4(), name="write", active=True)
+        role = Role(id=uuid.uuid4(), name="author", active=True)
+        role.role_permissions = [
+            RolePermission(id=uuid.uuid4(), role=role, permission=perm1),
+            RolePermission(id=uuid.uuid4(), role=role, permission=perm2)
+        ]
+        user_role = UserRole(id=uuid.uuid4(), role=role, active=True)
+        user = User(username="permuser2", email="perm2@example.com", hashed_password="irrelevant", active=True)
+        user.user_roles = [user_role]
+        perms = user.get_permissions()
+        assert set(perms) == {"read", "write"}

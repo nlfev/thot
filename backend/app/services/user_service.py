@@ -288,6 +288,7 @@ class UserService:
         db.commit()
         return True
 
+
     @staticmethod
     def list_users(
         db: Session,
@@ -295,14 +296,19 @@ class UserService:
         limit: int = 10,
         filter_username: Optional[str] = None,
         filter_email: Optional[str] = None,
+        active_only: bool = True,
     ) -> Tuple[List[User], int]:
-        """List users with optional filters and pagination"""
+        """List users with optional filters and pagination
+        If active_only is True, only users with active=True are returned.
+        """
         query = db.query(User)
 
         if filter_username:
             query = query.filter(User.username.ilike(f"%{filter_username}%"))
         if filter_email:
             query = query.filter(User.email.ilike(f"%{filter_email}%"))
+        if active_only:
+            query = query.filter(User.active == True)
 
         total = query.count()
         users = query.offset(skip).limit(limit).all()

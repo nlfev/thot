@@ -338,7 +338,7 @@
                     :disabled="index === 0"
                     :title="$t('common.moveUp')"
                   >
-                    ↑
+                    ?
                   </button>
                   <button
                     type="button"
@@ -347,7 +347,7 @@
                     :disabled="index === record_authors.length - 1"
                     :title="$t('common.moveDown')"
                   >
-                    ↓
+                    ?
                   </button>
                   <button type="button" class="btn btn-sm btn-danger" @click="removeAuthorRow(index)">
                     {{ $t('common.delete') }}
@@ -597,6 +597,7 @@
 <script>
 import { defineComponent } from 'vue'
 import { recordService } from '@/services/record'
+import { pageService } from '@/services/page'
 import { useAuthStore } from '@/stores/auth'
 
 export default defineComponent({
@@ -648,6 +649,7 @@ export default defineComponent({
       authors: [],
       loading: false,
       submitting: false,
+      uploadingPdf: false,
       creatingAuthor: false,
       creatingPublisher: false,
       error: null,
@@ -681,6 +683,9 @@ export default defineComponent({
     },
     canEditRecord() {
       return this.authStore.hasRole('admin') || this.authStore.hasRole('user_bibl')
+    },
+    canUploadPages() {
+      return this.authStore.hasRole('admin') || this.authStore.hasRole('user_scan')
     },
     isReadOnlyMode() {
       return this.isEditMode && !this.canEditRecord
@@ -889,6 +894,52 @@ export default defineComponent({
         console.error('Error saving record:', err)
       } finally {
         this.submitting = false
+      }
+    },
+
+    onRecordFileChange(event) {
+      const file = event.target.files?.[0]
+      this.selectedUploadFile = file || null
+      this.selectedUploadFileName = file?.name || ''
+    },
+
+    async handleRecordPdfUpload() {
+      if (!this.isEditMode || !this.canUploadPages) {
+        this.error = this.$t('messages.unauthorised')
+        return
+      }
+
+      if (!this.selectedUploadFile) {
+        this.error = this.$t('records.uploadPdfNoFile')
+        return
+      }
+
+      if (!this.form.restriction_id || !this.form.workstatus_id) {
+        this.error = this.$t('records.uploadPdfMissingMetadata')
+        return
+      }
+
+      this.uploadingPdf = true
+      this.error = null
+      this.successMessage = null
+
+      try {
+        await pageService.createPage({
+          name: this.$t('records.uploadPageDefaultName'),
+          record_id: this.recordId,
+          restriction_id: this.form.restriction_id,
+          workstatus_id: this.form.workstatus_id,
+          file: this.selectedUploadFile,
+        })
+
+        this.successMessage = this.$t('records.uploadPdfSuccess')
+        this.selectedUploadFile = null
+        this.selectedUploadFileName = ''
+      } catch (err) {
+        this.error = err.message || err.detail || this.$t('records.uploadPdfError')
+        console.error('Error uploading PDF from record page:', err)
+      } finally {
+        this.uploadingPdf = false
       }
     },
 
@@ -1242,6 +1293,16 @@ textarea.form-control {
   font-size: 12px;
   color: #6c757d;
   font-style: italic;
+}
+
+.upload-group {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.upload-actions {
+  margin-top: 10px;
 }
 
 @media (max-width: 768px) {

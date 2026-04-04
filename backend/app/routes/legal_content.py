@@ -42,7 +42,7 @@ async def get_legal_document(
 
     try:
         content = legal_file_path.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         raise HTTPException(status_code=500, detail="Failed to read legal content file") from exc
 
     return HTMLResponse(content=content)

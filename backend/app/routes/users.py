@@ -2,10 +2,12 @@
 User routes for profile and user management
 """
 
+
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models.user import User
@@ -142,17 +144,21 @@ async def change_password(
     return {"message": message}
 
 
+
 @router.get("", response_model=dict)
 async def list_users(
     skip: int = 0,
     limit: int = 10,
     filter_username: str = None,
     filter_email: str = None,
+    include_inactive: bool = Query(False),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
     """
     List users with filters (support/admin only)
+    Support: never sees inactive users.
+    Admin: sees only active users by default, can include inactive with filter.
     """
     # Check if user has support/admin role
     if not (current_user.has_role("support") or current_user.has_role("admin")):
@@ -161,12 +167,17 @@ async def list_users(
             detail="Insufficient permissions to access user management",
         )
 
+    # Support never sees inactive users
+    if current_user.has_role("support") and not current_user.has_role("admin"):
+        include_inactive = False
+
     users, total = UserService.list_users(
         db=db,
         skip=skip,
         limit=limit,
         filter_username=filter_username,
         filter_email=filter_email,
+        active_only=not include_inactive,
     )
 
     user_responses = [
@@ -236,9 +247,12 @@ async def get_pending_approval_users(
             detail="Insufficient permissions to access user information",
         )
 
+
     pending_count = db.query(func.count(User.id)).filter(
         User.active == True,
-        User.corporate_approved == False
+        User.corporate_approved == False,
+        User.corporate_number.isnot(None),
+        func.length(func.trim(User.corporate_number)) > 0
     ).scalar()
 
     return {
@@ -383,6 +397,36 @@ async def confirm_otp_reset(
 # TODO: Implement remaining endpoints:
 # - PUT /{user_id}/activate - Activate user
 # - PUT /{user_id}/deactivate - Deactivate user
+
+
+# --- DELETE ACCOUNT ENDPOINT (SELF) ---
+@router.delete("/delete-account", status_code=status.HTTP_200_OK)
+async def delete_own_account(
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """
+    Delete Account (set active=False)
+    ---
+    EN: Allows the user to delete their own account (sets active=False, soft delete).
+    DE: Ermöglicht dem Benutzer, seinen eigenen Account zu löschen (setzt active=False, Soft-Delete).
+    """
+    user = UserService.get_user_by_id(db, current_user.id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    if not user.active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account is already deleted/inactive"
+        )
+    user.active = False
+    user.last_modified_on = datetime.now(timezone.utc)
+    user.last_modified_by = user.id
+    db.commit()
+    return {"message": "Account deleted successfully (soft delete)", "detail": {"en": "Your account has been deleted (deactivated).", "de": "Ihr Account wurde gelöscht (deaktiviert)."}}
 
 
 @router.put("/{user_id}/password-reset")

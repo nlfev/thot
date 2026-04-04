@@ -265,13 +265,13 @@ Notes:
 ### Pages Management
 - `GET /api/v1/pages` - List pages (filterable by record_id)
 - `GET /api/v1/pages/{id}` - Get page details
-- `POST /api/v1/pages` - Create new page with PDF upload
+- `POST /api/v1/pages` - Create new page with PDF upload; multi-page PDFs are split into separate page entries
 - `PUT /api/v1/pages/{id}` - Update page (with optional file upload)
 - `DELETE /api/v1/pages/{id}` - Delete page (soft delete)
 - `GET /api/v1/pages/{id}/view-pdf` - **View PDF with user-specific watermark (inline)**
 - `GET /api/v1/pages/{id}/thumbnail?width=200` - **Get thumbnail with watermark**
 - `GET /api/v1/pages/{id}/download-watermarked` - **Download PDF with watermark**
-- `GET /uploads/{record_id}/{filename}` - **(Deprecated) Direct file access - use watermarked endpoints**
+- `GET /uploads/{signature_folder}/{filename}` - **(Deprecated) Direct file access - use watermarked endpoints**
 
 ### Configuration
 - `GET /api/v1/config` - Get public application configuration, including `features.closedRegistration` and `features.closedRegistrationConfigured`
@@ -317,6 +317,19 @@ WATERMARK_IMAGE_PATH=./assets/logo.png
 # Leave empty to generate QR codes without logo
 QR_CODE_LOGO_PATH=./assets/Logo_NLF_fregestellt_75x75.png
 ```
+
+`MAX_UPLOAD_SIZE` is configurable via `.env` and is interpreted in bytes. The default value `52428800` equals 50 MB.
+
+PDF storage behavior:
+- The base storage directory is controlled by `UPLOAD_DIRECTORY`.
+- The subfolder name is built from the trimmed record signature with whitespace replaced by `_`.
+- Single-page PDFs are stored as `Seite_yyyyMMdd_hhmmss.pdf`.
+- Multi-page PDFs are split into separate page entries and stored as `Seite_1.pdf`, `Seite_2.pdf`, etc.
+
+OCR processing logs:
+- The backend logs OCR runtime per file and per job.
+- After an upload batch is processed, a summary log shows processed file count and total duration.
+- Example: `Upload batch OCR complete. files=5 duration=312.4s record_id=6f9d...`
 
 ### Frontend (.env)
 ```env

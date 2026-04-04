@@ -5,6 +5,17 @@
 import api from './api'
 
 export const userService = {
+    /**
+     * Delete own account (soft delete)
+     */
+    async deleteAccount() {
+      try {
+        const response = await api.delete('/users/delete-account')
+        return response.data
+      } catch (error) {
+        throw error.response?.data || error
+      }
+    },
   /**
    * Get current user profile
    */
@@ -139,12 +150,16 @@ export const userService = {
           limit: options.limit ?? 10,
           filter_username: options.filter_username,
           filter_email: options.filter_email,
+          include_inactive: options.include_inactive !== undefined ? String(options.include_inactive) : undefined,
         }
       } else {
         params = {
           skip,
           limit,
           ...filters,
+        }
+        if ('include_inactive' in params) {
+          params.include_inactive = String(params.include_inactive)
         }
       }
 

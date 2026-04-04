@@ -66,6 +66,29 @@ def test_legal_content_endpoint_returns_404_when_file_missing(client, monkeypatc
     response = client.get("/api/v1/config/legal/terms-of-service?lang=en", headers=_host_headers())
 
     assert response.status_code == 404
+    assert "Legal content file not found" in response.json()["detail"]
+
+
+
+def test_legal_content_endpoint_returns_404_when_not_allowed(client, monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(type(config), "LEGAL_CONTENT_DIRECTORY", tmp_path.resolve())
+
+    response = client.get("/api/v1/config/legal/imprints?lang=de", headers=_host_headers())
+
+    assert response.status_code == 404
+    assert "Legal document not found" in response.json()["detail"]
+
+
+def test_legal_content_endpoint_reads_500_wrong_encoding(client, monkeypatch, tmp_path: Path):
+    monkeypatch.setattr(type(config), "LEGAL_CONTENT_DIRECTORY", tmp_path.resolve())
+
+    imprint_file = tmp_path / "imprint.de.html"
+    imprint_file.write_text("<h1>Impressum Testö</h1>", encoding="latin-1")
+
+    response = client.get("/api/v1/config/legal/imprint?lang=de", headers=_host_headers())
+
+    assert response.status_code == 500
+    assert "Failed to read legal content file" in response.json()["detail"]
 
 
 def test_bootstrap_registration_still_requires_tos(client, monkeypatch):
