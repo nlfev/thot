@@ -245,9 +245,12 @@ async def get_pending_approval_users(
             detail="Insufficient permissions to access user information",
         )
 
+
     pending_count = db.query(func.count(User.id)).filter(
         User.active == True,
-        User.corporate_approved == False
+        User.corporate_approved == False,
+        User.corporate_number.isnot(None),
+        func.length(func.trim(User.corporate_number)) > 0
     ).scalar()
 
     return {

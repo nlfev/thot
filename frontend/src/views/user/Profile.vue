@@ -32,7 +32,7 @@
           <label v-if="profileData.corporate_approved" class="badge badge-success">
             ✓ {{ $t('admin.approveCorporate') }}
           </label>
-          <label v-else class="badge badge-pending">
+          <label v-else-if="profileData.active && profileData.corporate_number" class="badge badge-pending">
             {{ $t('user.pendingApproval') }}
           </label>
         </div>
