@@ -47,6 +47,7 @@
           />
         </div>
 
+
         <div class="form-group">
           <label for="page-size">{{ $t('common.itemsPerPage') }}</label>
           <select
@@ -59,6 +60,19 @@
             <option value="20">20</option>
             <option value="50">50</option>
           </select>
+        </div>
+
+        <!-- Only show to admin -->
+        <div class="form-group" v-if="isAdmin">
+          <label for="include-inactive">
+            <input
+              id="include-inactive"
+              type="checkbox"
+              v-model="search.includeInactive"
+              @change="handleSearch"
+            />
+            {{ $t('admin.includeInactive') }}
+          </label>
         </div>
 
         <button class="btn btn-secondary" @click="resetFilters">
@@ -278,6 +292,7 @@ export default defineComponent({
       search: {
         username: '',
         email: '',
+        includeInactive: false,
       },
       currentPage: 1,
       pageSize: 10,
@@ -299,6 +314,9 @@ export default defineComponent({
     },
     canManageRoles() {
       return this.authStore.hasRole('admin') || this.authStore.hasRole('support')
+    },
+    isAdmin() {
+      return this.authStore.hasRole('admin')
     },
     hasCorporateNumberChanged() {
       if (!this.selectedUserDetails) {
@@ -324,6 +342,7 @@ export default defineComponent({
           limit: this.pageSize,
           filter_username: this.search.username || undefined,
           filter_email: this.search.email || undefined,
+          include_inactive: this.isAdmin ? !!this.search.includeInactive : false,
         })
 
         this.users = response.items || []

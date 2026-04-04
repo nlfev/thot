@@ -3,7 +3,7 @@ User routes for profile and user management
 """
 
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
@@ -142,17 +142,21 @@ async def change_password(
     return {"message": message}
 
 
+
 @router.get("", response_model=dict)
 async def list_users(
     skip: int = 0,
     limit: int = 10,
     filter_username: str = None,
     filter_email: str = None,
+    include_inactive: bool = Query(False),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
     """
     List users with filters (support/admin only)
+    Support: never sees inactive users.
+    Admin: sees only active users by default, can include inactive with filter.
     """
     # Check if user has support/admin role
     if not (current_user.has_role("support") or current_user.has_role("admin")):
@@ -161,12 +165,17 @@ async def list_users(
             detail="Insufficient permissions to access user management",
         )
 
+    # Support never sees inactive users
+    if current_user.has_role("support") and not current_user.has_role("admin"):
+        include_inactive = False
+
     users, total = UserService.list_users(
         db=db,
         skip=skip,
         limit=limit,
         filter_username=filter_username,
         filter_email=filter_email,
+        active_only=not include_inactive,
     )
 
     user_responses = [

@@ -150,12 +150,16 @@ export const userService = {
           limit: options.limit ?? 10,
           filter_username: options.filter_username,
           filter_email: options.filter_email,
+          include_inactive: options.include_inactive !== undefined ? String(options.include_inactive) : undefined,
         }
       } else {
         params = {
           skip,
           limit,
           ...filters,
+        }
+        if ('include_inactive' in params) {
+          params.include_inactive = String(params.include_inactive)
         }
       }
 

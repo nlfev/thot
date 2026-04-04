@@ -304,6 +304,7 @@ export const messages = {
       roleRemovedSuccess: 'Role "{roleName}" removed successfully',
       roleRemoveError: 'Failed to remove role',
       confirmRemoveRole: 'Are you sure you want to remove role {role}?',
+      includeInactive: 'Include inactive accounts',
     },
 
     // Validation
@@ -856,6 +857,7 @@ export const messages = {
       roleRemovedSuccess: 'Rolle "{roleName}" erfolgreich entfernt',
       roleRemoveError: 'Rolle konnte nicht entfernt werden',
       confirmRemoveRole: 'Möchten Sie die Rolle {role} wirklich entfernen?',
+      includeInactive: 'Inaktive Benutzer anzeigen',
     },
 
     // Validation
