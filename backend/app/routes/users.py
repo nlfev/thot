@@ -2,10 +2,12 @@
 User routes for profile and user management
 """
 
+
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from datetime import datetime, timezone
 
 from app.database import get_db
 from app.models.user import User
