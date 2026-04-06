@@ -23,7 +23,7 @@ class User(BaseModel):
     username = Column(String(255), unique=True, nullable=False, index=True)
     first_name = Column(String(255), nullable=True)
     last_name = Column(String(255), nullable=True)
-    email = Column(String(255), unique=True, nullable=False, index=True)
+    email = Column(String(255), nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
     unsuccessful_logins = Column(Integer, default=0, nullable=False)
     timestamp_last_successful_login = Column(DateTime(timezone=True), nullable=True)
