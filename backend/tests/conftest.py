@@ -22,6 +22,8 @@ from fastapi.testclient import TestClient
 
 
 # Test database
+
+
 SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///./test.db"
 
 engine = create_engine(
@@ -35,10 +37,8 @@ TestingSessionLocal = sessionmaker(
     bind=engine,
 )
 
-
 @pytest.fixture(scope="function")
 def db():
-    """Create test database and yield session"""
     Base.metadata.create_all(bind=engine)
     db_session = TestingSessionLocal()
     try:
@@ -47,22 +47,14 @@ def db():
         db_session.close()
         Base.metadata.drop_all(bind=engine)
 
-
 @pytest.fixture(scope="function")
 def client(db):
-    """Create test client"""
-
     def override_get_db():
         try:
             yield db
         finally:
             pass
-
-    original_get_db = app_database.get_db
-    app_database.get_db = override_get_db
     app.dependency_overrides[get_db] = override_get_db
-    try:
-        yield TestClient(app, base_url="http://localhost", headers={"Host": "localhost"})
-    finally:
-        app_database.get_db = original_get_db
-        app.dependency_overrides.clear()
+    with TestClient(app, base_url="http://localhost", headers={"Host": "localhost"}) as c:
+        yield c
+    app.dependency_overrides.clear()

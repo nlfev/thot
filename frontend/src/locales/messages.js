@@ -554,6 +554,21 @@ export const messages = {
       copyrightTitle: 'Copyright',
       copyright: '© {year} NLF Database Contributors. Licensed under AGPL-3.0-or-later.',
     },
+    // Email Change
+    emailChange: {
+      title: 'Change Email',
+      newEmail: 'New Email',
+      requestButton: 'Request Email Change',
+      confirmTitle: 'Confirm Email Change',
+      confirmToken: 'Confirmation Code',
+      confirmButton: 'Confirm Email',
+      info: 'You will receive a confirmation link at your new email address. The change is only complete after confirmation.',
+      successRequest: 'A confirmation email was sent to your new address. Please check your inbox.',
+      successConfirm: 'Your email address has been changed.',
+      error: 'Could not change email address.',
+      enterToken: 'Enter the confirmation code from your email:',
+      checkInboxInfo: 'Please check your email inbox for the confirmation link to complete the email change process.',
+    },
   },
 
   de: {
@@ -1099,6 +1114,21 @@ export const messages = {
       viewThirdPartyLicenses: 'Drittanbieter-Lizenzen anzeigen',
       copyrightTitle: 'Urheberrecht',
       copyright: '© {year} NLF Database Contributors. Lizenziert unter AGPL-3.0-or-later.',
+    },
+    // E-Mail-Änderung
+    emailChange: {
+      title: 'E-Mail ändern',
+      newEmail: 'Neue E-Mail',
+      requestButton: 'E-Mail-Änderung anfordern',
+      confirmTitle: 'E-Mail-Änderung bestätigen',
+      confirmToken: 'Bestätigungscode',
+      confirmButton: 'E-Mail bestätigen',
+      info: 'Sie erhalten einen Bestätigungslink an Ihre neue E-Mail-Adresse. Die Änderung wird erst nach Bestätigung wirksam.',
+      successRequest: 'Eine Bestätigungs-E-Mail wurde an Ihre neue Adresse gesendet. Bitte prüfen Sie Ihr Postfach.',
+      successConfirm: 'Ihre E-Mail-Adresse wurde geändert.',
+      error: 'E-Mail-Adresse konnte nicht geändert werden.',
+      enterToken: 'Geben Sie den Bestätigungscode aus Ihrer E-Mail ein:',
+      checkInboxInfo: 'Bitte prüfen Sie Ihren E-Mail-Posteingang auf den Bestätigungslink, um den E-Mail-Änderungsprozess abzuschließen.',
     },
   },
 }

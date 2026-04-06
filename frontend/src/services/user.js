@@ -59,10 +59,14 @@ export const userService = {
   /**
    * Change email
    */
+
+  /**
+   * Request email change (step 1)
+   */
   async changeEmail(newEmail) {
     try {
-      const response = await api.post('/users/email-change', {
-        new_email: newEmail,
+      const response = await api.post('/users/email-change/request', {
+        email: newEmail,
       })
       return response.data
     } catch (error) {
@@ -73,10 +77,14 @@ export const userService = {
   /**
    * Confirm email change
    */
-  async confirmEmailChange(verificationCode) {
+
+  /**
+   * Confirm email change (step 2)
+   */
+  async confirmEmailChange(token) {
     try {
-      const response = await api.post('/users/email-change/confirm/:token', {
-        verification_code: verificationCode,
+      const response = await api.post('/users/email-change/confirm', {
+        token,
       })
       return response.data
     } catch (error) {
