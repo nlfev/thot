@@ -34,7 +34,7 @@ Für die zur Verfügung gestellten genealogischen Online-Ressourcen wird geprüf
 
 Es gelten diese Regeln:
 
-- Ist das Sterbedatum der aufgeführten Person bekannt gilt eine Sperrzeit von 10 Jahren. [WARUM?? Datenschutz erfordert das NICHT!!]
+- Ist das Sterbedatum der aufgeführten Person bekannt, so sind die anderen Sperrfristen aufgehoben.
 - Ist das Heiratsdatum bekannt gilt eine Sperrzeit von 80 Jahren.
 - Ist das Geburtsdatum bekannt gilt eine Sperrzeit von 100 Jahren.
 - Sind sowohl Heiratsdatum als auch Geburtsdatum bekannt, so gilt die Sperrzeit, die zuerst endet.
