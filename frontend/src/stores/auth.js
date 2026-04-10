@@ -73,11 +73,15 @@ export const useAuthStore = defineStore('auth', {
       this.error = null
 
       try {
-        const response = await api.post('/auth/login', {
-          username,
-          password,
-          otp_code: otpCode,
-        })
+        const response = await api.post(
+          '/auth/login',
+          {
+            username,
+            password,
+            otp_code: otpCode,
+          },
+          { withCredentials: true }
+        )
 
         this.token = response.data.access_token
         this.user = normalizeUserPayload(response.data.user)

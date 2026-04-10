@@ -1,3 +1,4 @@
+from tests.conftest import auth_headers_and_csrf
 """Unittests für den OCR-Start-Endpunkt /pages/{page_id}/start-ocr"""
 
 import uuid
@@ -29,12 +30,10 @@ def _create_user_with_role(db, username: str, role_name: str) -> User:
     db.refresh(user)
     return user
 
-def _auth_headers_for_user(user: User) -> dict:
-    token = create_access_token(str(user.id))
-    return {
-        "Authorization": f"Bearer {token}",
-        "Host": "localhost",
-    }
+
+# Neue Hilfsfunktion: Auth-Header + CSRF für Tests
+def _auth_headers_and_csrf(user: User):
+    return auth_headers_and_csrf(user)
 
 def _create_record_and_page(db, user_id) -> tuple[Record, Restriction, WorkStatus, Page]:
     restriction = Restriction(name=f"none-{uuid.uuid4()}")
@@ -89,7 +88,11 @@ def test_start_ocr_job_success(client, db, monkeypatch, tmp_path):
         called["record_id"] = record_id
         return True
     monkeypatch.setattr(PageOcrJobService, "schedule_page_ocr", fake_schedule_page_ocr)
-    response = client.post(f"/api/v1/pages/{page.id}/start-ocr", headers=_auth_headers_for_user(user))
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
+    response = client.post(f"/api/v1/pages/{page.id}/start-ocr", headers=headers)
     assert response.status_code == 200
     assert response.json()["message"] == "OCR job started"
     assert called["page_id"] == str(page.id)
@@ -98,14 +101,22 @@ def test_start_ocr_job_success(client, db, monkeypatch, tmp_path):
 def test_start_ocr_job_forbidden_for_non_privileged_user(client, db, tmp_path):
     user = _create_user_with_role(db, "ocr_viewer", "user_view")
     record, restriction, workstatus, page = _create_record_and_page(db, user.id)
-    response = client.post(f"/api/v1/pages/{page.id}/start-ocr", headers=_auth_headers_for_user(user))
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
+    response = client.post(f"/api/v1/pages/{page.id}/start-ocr", headers=headers)
     assert response.status_code == 403
     assert "Not authorized" in response.json()["detail"]
 
 def test_start_ocr_job_page_not_found(client, db, tmp_path):
     user = _create_user_with_role(db, "ocr_admin2", "admin")
     fake_page_id = uuid.uuid4()
-    response = client.post(f"/api/v1/pages/{fake_page_id}/start-ocr", headers=_auth_headers_for_user(user))
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
+    response = client.post(f"/api/v1/pages/{fake_page_id}/start-ocr", headers=headers)
     assert response.status_code == 404
     assert "Page not found" in response.json()["detail"]
 
@@ -114,6 +125,10 @@ def test_start_ocr_job_no_origin_file(client, db, tmp_path):
     record, restriction, workstatus, page = _create_record_and_page(db, user.id)
     page.orgin_file = None
     db.commit()
-    response = client.post(f"/api/v1/pages/{page.id}/start-ocr", headers=_auth_headers_for_user(user))
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
+    response = client.post(f"/api/v1/pages/{page.id}/start-ocr", headers=headers)
     assert response.status_code == 400
     assert "No origin file" in response.json()["detail"]

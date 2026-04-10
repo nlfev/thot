@@ -28,8 +28,11 @@ def test_email_change_request_and_confirm(monkeypatch, db, client, test_user):
     monkeypatch.setattr(email_service, "send_email_reset_info", lambda *a, **kw: True)
 
     # Step 1: Request email change
-    headers = get_auth_header(test_user)
-    headers["Host"] = "localhost"
+    from tests.conftest import auth_headers_and_csrf
+    headers, cookies = auth_headers_and_csrf(test_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/users/email-change/request",
         json={"email": "new@example.com"},
@@ -46,10 +49,14 @@ def test_email_change_request_and_confirm(monkeypatch, db, client, test_user):
     token = email_reset.token
 
     # Step 2: Confirm email change
+    headers2, cookies2 = auth_headers_and_csrf(test_user)
+    client.cookies.clear()
+    for k, v in cookies2.items():
+        client.cookies.set(k, v)
     response2 = client.post(
         "/api/v1/users/email-change/confirm",
         json={"token": token},
-        headers={"Host": "localhost"},
+        headers=headers2,
     )
     assert response2.status_code == 200
     data2 = response2.json()
@@ -57,7 +64,7 @@ def test_email_change_request_and_confirm(monkeypatch, db, client, test_user):
     # User email updated
     db.refresh(test_user)
     assert test_user.email == "new@example.com"
-    # Token removed
+    # Token entfernt
     assert db.query(UserEmailReset).filter_by(user_id=test_user.id).first() is None
 
     # Clean up dependency overrides

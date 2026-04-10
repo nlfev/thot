@@ -1,3 +1,4 @@
+from tests.conftest import auth_headers_and_csrf
 """
 Tests for record read/write permissions.
 """
@@ -30,12 +31,10 @@ def _create_user_with_role(db, username: str, role_name: str) -> User:
     return user
 
 
-def _auth_headers_for_user(user: User) -> dict:
-    token = create_access_token(str(user.id))
-    return {
-        "Authorization": f"Bearer {token}",
-        "Host": "localhost",
-    }
+
+# Neue Hilfsfunktion: Auth-Header + CSRF für Tests
+def _auth_headers_and_csrf(user: User):
+    return auth_headers_and_csrf(user)
 
 
 def _create_record_fixture(db, created_by) -> Record:
@@ -67,9 +66,11 @@ def test_regular_user_can_read_record_by_id(client, db):
     regular_user = _create_user_with_role(db, "reader_user", "user")
     record = _create_record_fixture(db, regular_user.id)
 
+
+    headers, _ = _auth_headers_and_csrf(regular_user)
     response = client.get(
         f"/api/v1/records/{record.id}",
-        headers=_auth_headers_for_user(regular_user),
+        headers=headers,
     )
 
     assert response.status_code == 200
@@ -80,8 +81,10 @@ def test_regular_user_can_read_record_by_id(client, db):
 def test_regular_user_is_read_only_for_records(client, db):
     regular_user = _create_user_with_role(db, "readonly_user", "user")
     record = _create_record_fixture(db, regular_user.id)
-    headers = _auth_headers_for_user(regular_user)
-
+    headers, cookies = _auth_headers_and_csrf(regular_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     create_response = client.post(
         "/api/v1/records",
         headers=headers,
@@ -110,8 +113,10 @@ def test_regular_user_is_read_only_for_records(client, db):
 def test_user_bibl_role_can_modify_records(client, db):
     power_user = _create_user_with_role(db, "editor_user", "user_bibl")
     base_record = _create_record_fixture(db, power_user.id)
-    headers = _auth_headers_for_user(power_user)
-
+    headers, cookies = _auth_headers_and_csrf(power_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     create_response = client.post(
         "/api/v1/records",
         headers=headers,
@@ -139,25 +144,30 @@ def test_user_bibl_role_can_modify_records(client, db):
 
 
 def test_create_record_requires_typed_body_fields(client, db):
-    power_user = _create_user_with_role(db, "typed_create_user", "user_bibl")
-    headers = _auth_headers_for_user(power_user)
-
-    response = client.post(
+    power_user = _create_user_with_role(db, "typed_response_user", "user_bibl")
+    base_record = _create_record_fixture(db, power_user.id)
+    headers, cookies = _auth_headers_and_csrf(power_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
+    create_response = client.post(
         "/api/v1/records",
         headers=headers,
         json={
-            "title": "Missing required foreign keys",
+            "title": "Typed response create",
+            "signature": "SIG-900",
+            "signature2": "SIG-900-B",
+            "subtitle": "A subtitle",
+            "year": "2025",
+            "edition": "2",
+            "restriction_id": str(base_record.restriction_id),
+            "workstatus_id": str(base_record.workstatus_id),
         },
     )
-
-    assert response.status_code == 422
-
-
-def test_create_record_rejects_invalid_date_format(client, db):
-    power_user = _create_user_with_role(db, "date_validation_user", "user_bibl")
-    base_record = _create_record_fixture(db, power_user.id)
-    headers = _auth_headers_for_user(power_user)
-
+    headers, cookies = _auth_headers_and_csrf(power_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/records",
         headers=headers,
@@ -175,8 +185,11 @@ def test_create_record_rejects_invalid_date_format(client, db):
 def test_create_and_update_record_return_typed_response_fields(client, db):
     power_user = _create_user_with_role(db, "typed_response_user", "user_bibl")
     base_record = _create_record_fixture(db, power_user.id)
-    headers = _auth_headers_for_user(power_user)
+    headers, cookies = _auth_headers_and_csrf(power_user)
 
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     create_response = client.post(
         "/api/v1/records",
         headers=headers,

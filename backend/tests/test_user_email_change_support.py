@@ -61,8 +61,11 @@ def test_support_email_change(monkeypatch, db, client, support_user, test_user):
     monkeypatch.setattr(email_service, "send_email_reset_info", lambda *a, **kw: True)
 
     # Step 1: Support requests email change for test_user
-    headers = get_auth_header(support_user)
-    headers["Host"] = "localhost"
+    from tests.conftest import auth_headers_and_csrf
+    headers, cookies = auth_headers_and_csrf(support_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         f"/api/v1/users/email-change/request/support?user_id={test_user.id}",
         json={"email": "new2@example.com"},
@@ -83,10 +86,14 @@ def test_support_email_change(monkeypatch, db, client, support_user, test_user):
     assert (expires_at - datetime.now(timezone.utc)).total_seconds() > 23*3600
 
     # Step 2: Confirm email change
+    headers2, cookies2 = auth_headers_and_csrf(support_user)
+    client.cookies.clear()
+    for k, v in cookies2.items():
+        client.cookies.set(k, v)
     response2 = client.post(
         "/api/v1/users/email-change/confirm",
         json={"token": token},
-        headers={"Host": "localhost"},
+        headers=headers2,
     )
     assert response2.status_code == 200
     data2 = response2.json()

@@ -2,7 +2,7 @@
 Authentication routes for user registration, login, and password management
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
@@ -24,6 +24,7 @@ from app.schemas import (
 )
 from app.services import UserService, RegistrationService, PasswordResetService
 from app.services.otp_reset_service import OTPResetService
+from app.middleware.csrf import CSRFMiddleware
 from app.utils import (
     create_access_token,
     decode_access_token,
@@ -215,6 +216,7 @@ async def confirm_registration(
 @router.post("/login", response_model=UserLoginResponse)
 async def login(
     request: UserLoginRequest,
+    response: Response,
     db: Session = Depends(get_db),
 ):
     """
@@ -233,6 +235,18 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Die Anmeldung ist fehlgeschlagen"
         )
+
+    # Set CSRF token cookie
+    csrf_token = CSRFMiddleware.generate_csrf_token()
+    response.set_cookie(
+        key="csrf_token",
+        value=csrf_token,
+        httponly=False,  # Must be readable by frontend JS
+        secure=config.COOKIE_SECURE,
+        samesite="Lax",
+        max_age=60*60*24,
+        # domain entfernt, damit Cookie für localhost funktioniert
+    )
 
     # Require OTP either when user has OTP enabled or when privileged role is assigned.
     requires_role_based_otp = user.has_role("support") or user.has_role("admin")

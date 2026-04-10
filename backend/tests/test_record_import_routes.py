@@ -1,3 +1,4 @@
+from tests.conftest import auth_headers_and_csrf
 """Tests for admin XLSX record import routes."""
 
 from io import BytesIO
@@ -47,12 +48,10 @@ def _create_user_with_role(db, username: str, role_name: str) -> User:
     return user
 
 
-def _auth_headers_for_user(user: User) -> dict:
-    token = create_access_token(str(user.id))
-    return {
-        "Authorization": f"Bearer {token}",
-        "Host": "localhost",
-    }
+
+# Neue Hilfsfunktion: Auth-Header + CSRF für Tests
+def _auth_headers_and_csrf(user: User):
+    return auth_headers_and_csrf(user)
 
 
 def _ensure_default_workstatus(db):
@@ -118,9 +117,13 @@ def test_record_import_admin_only(client, db):
         ["Title 1", "SIG-1", "", "BIB-1", "Book", "Alpha", "", "", "", "", "", "", "", "", "", "", "Deutsch", "Miller, Max", "2025-01-10"]
     ])
 
+    headers, cookies = _auth_headers_and_csrf(support_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/admin/records-import/xlsx",
-        headers=_auth_headers_for_user(support_user),
+        headers=headers,
         files={
             "file": (
                 "import.xlsx",
@@ -144,9 +147,13 @@ def test_record_import_creates_duplicate_signature_and_metadata(client, db):
         ]
     )
 
+    headers, cookies = _auth_headers_and_csrf(admin_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/admin/records-import/xlsx",
-        headers=_auth_headers_for_user(admin_user),
+        headers=headers,
         files={
             "file": (
                 "import.xlsx",
@@ -181,9 +188,13 @@ def test_record_import_returns_error_report_for_missing_required_values(client, 
         ]
     )
 
+    headers, cookies = _auth_headers_and_csrf(admin_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/admin/records-import/xlsx",
-        headers=_auth_headers_for_user(admin_user),
+        headers=headers,
         files={
             "file": (
                 "import.xlsx",
@@ -211,9 +222,13 @@ def test_record_import_requires_single_sheet(client, db):
         include_second_sheet=True,
     )
 
+    headers, cookies = _auth_headers_and_csrf(admin_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/admin/records-import/xlsx",
-        headers=_auth_headers_for_user(admin_user),
+        headers=headers,
         files={
             "file": (
                 "import.xlsx",
@@ -257,9 +272,13 @@ def test_record_import_maps_signature2_loantype_keywords_and_cleans_x000d(client
         ]
     )
 
+    headers, cookies = _auth_headers_and_csrf(admin_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/admin/records-import/xlsx",
-        headers=_auth_headers_for_user(admin_user),
+        headers=headers,
         files={
             "file": (
                 "import.xlsx",
@@ -341,9 +360,13 @@ def test_record_import_invalid_date_is_cleared_and_logged(client, db):
         ]
     )
 
+    headers, cookies = _auth_headers_and_csrf(admin_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/admin/records-import/xlsx",
-        headers=_auth_headers_for_user(admin_user),
+        headers=headers,
         files={
             "file": (
                 "import.xlsx",
@@ -426,9 +449,13 @@ def test_record_import_stores_publisher_id(client, db):
     workbook.save(buffer)
     file_bytes = buffer.getvalue()
 
+    headers, cookies = _auth_headers_and_csrf(admin_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/admin/records-import/xlsx",
-        headers=_auth_headers_for_user(admin_user),
+        headers=headers,
         files={
             "file": (
                 "import.xlsx",

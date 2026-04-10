@@ -1,6 +1,7 @@
 
 
 
+
 """
 Pages API routes
 """
@@ -13,10 +14,12 @@ import logging
 import re
 import subprocess
 import tempfile
+
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File, Form, Request
+from app.middleware.csrf import CSRF_HEADER_NAME
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 from pypdf import PdfReader, PdfWriter
@@ -31,23 +34,127 @@ from app.services import pdf_ocr_service as pdf_ocr_module
 from app.utils.auth import get_current_user
 from config import config
 
+
 router = APIRouter(prefix="/pages", tags=["pages"])
 logger = logging.getLogger(__name__)
 
-
-# OCR-Job manuell starten
-
+# Start OCR job for a page
 @router.post("/{page_id}/start-ocr")
 async def start_ocr_job(
     page_id: str,
+    request: Request,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
-    """
-    Manually start OCR job for a page (admin/user_scan only)
-    """
+    """Start OCR job for a page (admin or user_scan only, CSRF required)."""
+    # CSRF check
+    csrf_cookie = request.cookies.get("csrf_token")
+    csrf_header = request.headers.get(CSRF_HEADER_NAME)
+    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
+    # Role check
     if not (current_user.has_role("admin") or current_user.has_role("user_scan")):
         raise HTTPException(status_code=403, detail="Not authorized to start OCR job")
+    # Parse UUID
+    try:
+        page_uuid = uuid.UUID(page_id) if not isinstance(page_id, uuid.UUID) else page_id
+    except Exception:
+        raise HTTPException(status_code=404, detail="Page not found")
+    page = db.query(Page).filter(Page.id == page_uuid, Page.active == True).first()
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found")
+    if not page.orgin_file:
+        raise HTTPException(status_code=400, detail="No origin file for this page")
+    try:
+        PageOcrJobService.schedule_page_ocr(page_id=str(page.id), record_id=str(page.record_id) if page.record_id else None)
+    except Exception as exc:
+        logger.exception("Failed to start OCR job")
+        raise HTTPException(status_code=500, detail=f"Failed to start OCR job: {str(exc)}")
+    return {"message": "OCR job started"}
+
+
+router = APIRouter(prefix="/pages", tags=["pages"])
+logger = logging.getLogger(__name__)
+
+# OCR-Job manuell starten
+# Neue PDF-Route nach router-Definition und allen Imports
+
+# Start OCR job for a page
+@router.post("/{page_id}/start-ocr")
+async def start_ocr_job(
+    page_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """Start OCR job for a page (admin or user_scan only, CSRF required)."""
+    # CSRF check
+    csrf_cookie = request.cookies.get("csrf_token")
+    csrf_header = request.headers.get(CSRF_HEADER_NAME)
+    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
+    # Role check
+    if not (current_user.has_role("admin") or current_user.has_role("user_scan")):
+        raise HTTPException(status_code=403, detail="Not authorized to start OCR job")
+    # Parse UUID
+    try:
+        page_uuid = uuid.UUID(page_id) if not isinstance(page_id, uuid.UUID) else page_id
+    except Exception:
+        raise HTTPException(status_code=404, detail="Page not found")
+    page = db.query(Page).filter(Page.id == page_uuid, Page.active == True).first()
+    if not page:
+        raise HTTPException(status_code=404, detail="Page not found")
+    if not page.orgin_file:
+        raise HTTPException(status_code=400, detail="No origin file for this page")
+    try:
+        PageOcrJobService.schedule_page_ocr(page_id=str(page.id), record_id=str(page.record_id) if page.record_id else None)
+    except Exception as exc:
+        logger.exception("Failed to start OCR job")
+        raise HTTPException(status_code=500, detail=f"Failed to start OCR job: {str(exc)}")
+    return {"message": "OCR job started"}
+
+@router.get("/{page_id}/pdf")
+async def get_pdf(
+    page_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user = Depends(get_current_user),
+):
+    """Download the PDF for a page (Auth zuerst, dann CSRF-Check)."""
+    # Authentifizierung ist bereits durch Depends(get_current_user) erfolgt (401 bei Fehler)
+    # Jetzt CSRF prüfen:
+    csrf_cookie = request.cookies.get("csrf_token")
+    csrf_header = request.headers.get(CSRF_HEADER_NAME)
+    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
+    # Ensure page_id is a UUID object
+    import uuid
+    try:
+        page_uuid = uuid.UUID(page_id) if not isinstance(page_id, uuid.UUID) else page_id
+    except Exception:
+        raise HTTPException(status_code=404, detail="Page not found")
+    page = db.query(Page).options(joinedload(Page.record)).filter(Page.id == page_uuid, Page.active == True).first()
+    if not page:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Page not found")
+    pdf_file = _get_preferred_pdf_file(page)
+    if not pdf_file:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No PDF file available for this page")
+    source_pdf_path = (config.UPLOAD_DIRECTORY / pdf_file).resolve()
+    if not source_pdf_path.exists() or not source_pdf_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source PDF file not found on server")
+    # PDF einfach ausliefern (ohne Watermark)
+    with open(source_pdf_path, "rb") as f:
+        pdf_bytes = f.read()
+    filename_stem = Path(pdf_file).stem
+    download_name = f"{filename_stem}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{download_name}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
     import uuid
     try:
@@ -702,9 +809,15 @@ def _populate_current_file_from_origin(db: Session, page: Page) -> None:
 @router.get("/{page_id}/download-watermarked")
 async def download_watermarked_pdf(
     page_id: str,
+    request: Request,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
+    # CSRF check (redundant, but explicit for clarity)
+    csrf_cookie = request.cookies.get("csrf_token")
+    csrf_header = request.headers.get(CSRF_HEADER_NAME)
+    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
     """Return a user-specific watermarked PDF for the given page."""
     page = db.query(Page).options(joinedload(Page.record)).filter(Page.id == page_id, Page.active == True).first()
 
@@ -762,9 +875,15 @@ async def download_watermarked_pdf(
 @router.get("/{page_id}/view-pdf")
 async def view_watermarked_pdf(
     page_id: str,
+    request: Request,
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
+    # CSRF check (redundant, but explicit for clarity)
+    csrf_cookie = request.cookies.get("csrf_token")
+    csrf_header = request.headers.get(CSRF_HEADER_NAME)
+    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
     """Return a user-specific watermarked PDF for inline viewing in the browser."""
     page = db.query(Page).options(joinedload(Page.record)).filter(Page.id == page_id, Page.active == True).first()
 
@@ -822,10 +941,16 @@ async def view_watermarked_pdf(
 @router.get("/{page_id}/thumbnail")
 async def get_thumbnail_with_watermark(
     page_id: str,
+    request: Request,
     width: int = Query(200, ge=50, le=800, description="Thumbnail width in pixels"),
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
+    # CSRF check (redundant, but explicit for clarity)
+    csrf_cookie = request.cookies.get("csrf_token")
+    csrf_header = request.headers.get(CSRF_HEADER_NAME)
+    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
     """Return a thumbnail of the first page with watermark overlay."""
     page = db.query(Page).options(joinedload(Page.record)).filter(Page.id == page_id, Page.active == True).first()
 
@@ -998,6 +1123,7 @@ async def get_page(
 
 @router.post("")
 async def create_page(
+    request: Request,
     name: str = Form(...),
     description: Optional[str] = Form(None),
     page: Optional[str] = Form(None),
@@ -1010,6 +1136,11 @@ async def create_page(
     db: Session = Depends(get_db),
     current_user = Depends(get_current_user),
 ):
+    # CSRF check (redundant, but explicit for clarity)
+    csrf_cookie = request.cookies.get("csrf_token")
+    csrf_header = request.headers.get(CSRF_HEADER_NAME)
+    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
+        raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
     """
     Create a new page with optional file upload
     Only users with 'admin' or 'user_scan' role can create pages

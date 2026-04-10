@@ -1,3 +1,8 @@
+from app.models import User
+# Minimal auth header utility for GET requests (no CSRF needed)
+def _auth_headers_for_user(user: User) -> dict:
+    token = create_access_token(str(user.id))
+    return {"Authorization": f"Bearer {token}", "Host": "localhost"}
 """
 Tests for role management routes (admin only)
 """
@@ -24,22 +29,37 @@ def _create_user_with_role(db, username: str, email: str, role_name: str) -> Use
     db.add(user)
     db.flush()
 
-    db.add(UserRole(user_id=user.id, role_id=role.id))
+    user_role = UserRole(user_id=user.id, role_id=role.id, active=True)
+    db.add(user_role)
+    db.flush()
+    db.refresh(user_role)
     db.commit()
     db.refresh(user)
+    db.refresh(role)
+    db.expunge(user)
+    user = db.query(User).filter(User.id == user.id).first()
     return user
 
 
-def _auth_headers_for_user(user: User) -> dict:
+
+# Use the global CSRF/auth utility from conftest if available
+from app.middleware.csrf import CSRFMiddleware
+from app.utils import create_access_token
+def _auth_headers_and_csrf(user: User):
     token = create_access_token(str(user.id))
-    return {"Authorization": f"Bearer {token}"}
+    csrf_token = CSRFMiddleware.generate_csrf_token()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Host": "localhost",
+        "X-CSRF-Token": csrf_token,
+    }
+    cookies = {"csrf_token": csrf_token}
+    return headers, cookies
 
 
 def test_list_roles_admin_allowed(client, db):
     admin_user = _create_user_with_role(db, "adminuser", "admin@example.com", "admin")
-
     response = client.get("/api/v1/roles", headers=_auth_headers_for_user(admin_user))
-
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
@@ -49,17 +69,17 @@ def test_list_roles_admin_allowed(client, db):
 def test_list_roles_support_forbidden(client, db):
     _create_user_with_role(db, "adminuser", "admin@example.com", "admin")
     support_user = _create_user_with_role(db, "supportuser", "support@example.com", "support")
-
     response = client.get("/api/v1/roles", headers=_auth_headers_for_user(support_user))
-
     assert response.status_code == 403
     assert "Admin role required" in response.json()["detail"]
 
 
 def test_role_crud_admin_only(client, db):
     admin_user = _create_user_with_role(db, "adminuser", "admin@example.com", "admin")
-    headers = _auth_headers_for_user(admin_user)
-
+    headers, cookies = _auth_headers_and_csrf(admin_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     create_response = client.post(
         "/api/v1/roles",
         headers=headers,
@@ -88,16 +108,16 @@ def test_role_crud_admin_only(client, db):
 
 def test_system_roles_cannot_be_deleted(client, db):
     admin_user = _create_user_with_role(db, "adminuser", "admin@example.com", "admin")
-    headers = _auth_headers_for_user(admin_user)
-
+    headers, cookies = _auth_headers_and_csrf(admin_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     support_role = db.query(Role).filter(Role.name == "support").first()
     if support_role is None:
         support_role = Role(name="support", description="Support role")
         db.add(support_role)
         db.commit()
         db.refresh(support_role)
-
     response = client.delete(f"/api/v1/roles/{support_role.id}", headers=headers)
-
     assert response.status_code == 400
     assert response.json()["detail"] == "Cannot delete system roles"

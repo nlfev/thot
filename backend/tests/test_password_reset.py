@@ -1,3 +1,5 @@
+import pytest
+from tests.conftest import auth_headers_and_csrf
 """
 Tests for password reset flow
 """
@@ -49,17 +51,21 @@ def _create_user(db, username: str, email: str, password: str, role_name: str = 
 
 def test_password_reset_request_uses_username(client, db, monkeypatch):
     _create_role(db, "user")
-    _create_user(db, "alice", "alice@example.com", "ValidPass123!", "user")
+    user = _create_user(db, "alice", "alice@example.com", "ValidPass123!", "user")
 
     monkeypatch.setattr(
         "app.routes.auth.email_service.send_password_reset_email",
         lambda *args, **kwargs: True,
     )
 
+    headers, cookies = auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/auth/password-reset",
         json={"username": "alice"},
-        headers={"Host": "localhost"},
+        headers=headers,
     )
 
     assert response.status_code == 200
@@ -80,10 +86,14 @@ def test_password_reset_confirm_flow_updates_password_and_marks_used(client, db,
         lambda *args, **kwargs: True,
     )
 
+    headers, cookies = auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     request_response = client.post(
         "/api/v1/auth/password-reset",
         json={"username": "bob"},
-        headers={"Host": "localhost"},
+        headers=headers,
     )
     assert request_response.status_code == 200
 
@@ -92,7 +102,7 @@ def test_password_reset_confirm_flow_updates_password_and_marks_used(client, db,
 
     validate_response = client.get(
         f"/api/v1/auth/password-reset/confirm/{token_entry.token}",
-        headers={"Host": "localhost"},
+        headers=headers,
     )
     assert validate_response.status_code == 200
 
@@ -102,7 +112,7 @@ def test_password_reset_confirm_flow_updates_password_and_marks_used(client, db,
             "new_password": "NewValidPass456!",
             "new_password_confirm": "NewValidPass456!",
         },
-        headers={"Host": "localhost"},
+        headers=headers,
     )
     assert confirm_response.status_code == 200
 
@@ -125,10 +135,13 @@ def test_support_can_start_password_reset_for_user(client, db, monkeypatch):
         lambda *args, **kwargs: True,
     )
 
-    access_token = create_access_token(str(support_user.id))
+    headers, cookies = auth_headers_and_csrf(support_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.put(
         f"/api/v1/users/{target_user.id}/password-reset",
-        headers={"Authorization": f"Bearer {access_token}", "Host": "localhost"},
+        headers=headers,
     )
 
     assert response.status_code == 200
