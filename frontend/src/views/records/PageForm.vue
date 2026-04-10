@@ -11,6 +11,14 @@
     <div v-if="error" class="alert alert-danger">{{ error }}</div>
 
     <form v-if="!loading" class="page-form" @submit.prevent="handleSubmit">
+
+      <div v-if="(isEditMode || (!isEditMode && (pageRecordTitle || pageRecordSignature)))" class="form-group">
+        <label>{{ $t('records.title') }}:</label>
+        <span>
+          <template v-if="pageRecordSignature && pageRecordTitle">{{ pageRecordSignature }} - </template>{{ pageRecordTitle }}
+        </span>
+      </div>
+
       <div class="form-group">
         <label for="name">{{ $t('pages.pageName') }} *</label>
         <input
@@ -152,6 +160,8 @@ export default {
       selectedFile: null,
       selectedFileName: '',
       hasCurrentFile: false,
+      pageRecordTitle: '',
+      pageRecordSignature: '',
       form: {
         name: '',
         description: '',
@@ -191,9 +201,20 @@ export default {
     this.loadMetadata()
     if (this.isEditMode) {
       this.loadPage()
+    } else {
+      this.loadRecordInfo()
     }
   },
   methods: {
+    async loadRecordInfo() {
+      try {
+        const record = await recordService.getRecord(this.recordId)
+        this.pageRecordTitle = record.title || ''
+        this.pageRecordSignature = record.signature || ''
+      } catch (err) {
+        // Fehler ignorieren, falls Record nicht geladen werden kann
+      }
+    },
     async loadMetadata() {
       try {
         const [restrictionsResponse, workstatusResponse] = await Promise.all([
@@ -227,6 +248,8 @@ export default {
         this.form.workstatus_id = page.workstatus_id || ''
         this.form.order_by = page.order_by !== undefined && page.order_by !== null ? page.order_by : null
         this.hasCurrentFile = !!page.location_file
+        this.pageRecordTitle = page.record_title || ''
+        this.pageRecordSignature = page.record_signature || ''
       } catch (err) {
         this.error = err.message || this.$t('pages.loadError')
       } finally {
