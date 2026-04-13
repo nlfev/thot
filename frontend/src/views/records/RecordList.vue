@@ -108,6 +108,8 @@
             <th>{{ $t('records.publisher') }}</th>
             <th>{{ $t('records.keywordsNames') }}</th>
             <th>{{ $t('records.keywordsLocations') }}</th>
+            <th>{{ $t('records.loantype') }}</th>
+            <th v-if="authStore.hasRole('admin') || authStore.hasRole('user_bibl')">{{ $t('records.loantypeSubtype') }}</th>
             <th>{{ $t('records.restriction') }}</th>
             <th>{{ $t('records.workstatus') }}</th>
             <th>{{ $t('pages.totalCount') }}</th>
@@ -132,6 +134,14 @@
                 {{ record.keywords_locations }}
               </span>
               <span v-else>-</span>
+            </td>
+            <td>
+              <span v-if="authStore.hasRole('admin') || authStore.hasRole('user_bibl')">
+                {{ record.loantype ? (record.loantype + (record.loantype_subtype ? ' - ' + record.loantype_subtype : '')) : '-' }}
+              </span>
+              <span v-else>
+                {{ record.loantype || '-' }}
+              </span>
             </td>
             <td>{{ record.restriction || '-' }}</td>
             <td>{{ record.workstatus || '-' }}</td>

@@ -3,7 +3,7 @@
  */
 
 import { defineStore } from 'pinia'
-import api from '@/services/api'
+import api from '../services/api'
 import { useAppStore } from '@/stores/app'
 
 const DEFAULT_SESSION_TIMEOUT_MINUTES = 60

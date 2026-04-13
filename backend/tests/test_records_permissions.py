@@ -1,3 +1,57 @@
+# --- RecordList loantype/subtype Sichtbarkeit je Rolle ---
+import pytest
+from app.models import LoanType
+
+def _create_record_with_loantype(db, created_by, loan="Ausleihbar", subtype="Präsenz"):
+    restriction = Restriction(name=f"none-{uuid.uuid4()}")
+    area = WorkStatusArea(area=f"record-{uuid.uuid4()}")
+    db.add_all([restriction, area])
+    db.flush()
+    workstatus = WorkStatus(status=f"running-{uuid.uuid4()}", workstatus_area_id=area.id)
+    db.add(workstatus)
+    db.flush()
+    loantype = LoanType(loan=loan, subtype=subtype)
+    db.add(loantype)
+    db.flush()
+    record = Record(
+        title="Test record with loantype",
+        description="desc",
+        signature="SIG-LOAN-1",
+        comment="comment",
+        restriction_id=restriction.id,
+        workstatus_id=workstatus.id,
+        loantype_id=loantype.id,
+        created_by=created_by,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record, loantype
+
+@pytest.mark.parametrize("role_name, expect_subtype", [
+    ("user", False),
+    ("user_bibl", True),
+    ("admin", True),
+])
+def test_recordlist_loantype_visibility_by_role(client, db, role_name, expect_subtype):
+    user = _create_user_with_role(db, f"test_{role_name}", role_name)
+    record, loantype = _create_record_with_loantype(db, user.id)
+    headers, _ = _auth_headers_and_csrf(user)
+    response = client.get("/api/v1/records", headers=headers)
+    assert response.status_code == 200
+    payload = response.json()
+    assert "items" in payload and len(payload["items"]) > 0
+    found = False
+    for item in payload["items"]:
+        if item["id"] == str(record.id):
+            found = True
+            assert item["loantype"] == loantype.loan
+            if expect_subtype:
+                assert item["loantype_subtype"] == loantype.subtype
+            else:
+                # Feld existiert, ist aber None
+                assert item["loantype_subtype"] is None
+    assert found, "Testdatensatz nicht in Recordliste gefunden"
 from tests.conftest import auth_headers_and_csrf
 """
 Tests for record read/write permissions.

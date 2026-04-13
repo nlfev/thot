@@ -720,6 +720,8 @@ class RecordListItemResponse(BaseModel):
     description: Optional[str] = None
     signature: Optional[str] = None
     comment: Optional[str] = None
+    loantype: Optional[str] = None  # Name des Loantype (loan)
+    loantype_subtype: Optional[str] = None  # Subtype, nur für admin/user_bibl
     restriction_id: UUID
     restriction: Optional[str] = None
     workstatus_id: UUID
