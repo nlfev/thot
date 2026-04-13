@@ -1,6 +1,12 @@
+# sys.path-Workaround für app-Imports
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from app.utils import create_access_token
+from app.middleware.csrf import CSRFMiddleware
+from app.models import User
 
 
-# Globale Test-User-Fixture für alle Tests
 import pytest
 import sys
 import os
@@ -8,6 +14,18 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 from app.models import User
 from uuid import uuid4
 from datetime import datetime, timezone
+
+# Globale Test-Utility für Auth-Header + CSRF-Token
+def auth_headers_and_csrf(user: User):
+    token = create_access_token(str(user.id))
+    csrf_token = CSRFMiddleware.generate_csrf_token()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Host": "localhost",
+        "X-CSRF-Token": csrf_token,
+    }
+    cookies = {"csrf_token": csrf_token}
+    return headers, cookies
 
 @pytest.fixture
 def test_user(db):

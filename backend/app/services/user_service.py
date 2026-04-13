@@ -9,7 +9,7 @@ from sqlalchemy import and_
 import uuid
 import logging
 
-from app.models import User, Role, UserRole, Permission
+from app.models import User, Role, UserRole, Permission, RolePermission
 from app.utils import (
     hash_password,
     verify_password,
@@ -94,14 +94,25 @@ class UserService:
 
     @staticmethod
     def get_user_by_id(db: Session, user_id: str) -> Optional[User]:
-        """Get user by ID"""
+        """Get user by ID, eager-load roles and permissions for authentication checks"""
+        from sqlalchemy.orm import selectinload
         try:
             # Convert string to UUID if needed
             if isinstance(user_id, str):
                 user_id = uuid.UUID(user_id)
         except (ValueError, AttributeError):
             return None
-        return db.query(User).filter(User.id == user_id).first()
+        return (
+            db.query(User)
+            .options(
+                selectinload(User.user_roles)
+                .selectinload(UserRole.role)
+                .selectinload(Role.role_permissions)
+                .selectinload(RolePermission.permission)
+            )
+            .filter(User.id == user_id)
+            .first()
+        )
 
     @staticmethod
     def authenticate_user(

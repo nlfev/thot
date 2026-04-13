@@ -2,21 +2,29 @@
  * API Service
  */
 
+
 import axios from 'axios'
-import API_BASE_URL from '@/config/api'
+import API_BASE_URL from '../config/api'
+import { getCsrfToken } from '../utils/csrf'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 })
 
-// Add token to requests if available
+// Add token and CSRF token to all requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  // Always add CSRF token for all requests (GET included)
+  const csrf = getCsrfToken()
+  if (csrf) {
+    config.headers['X-CSRF-Token'] = csrf
   }
   return config
 })

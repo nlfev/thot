@@ -1,3 +1,5 @@
+import pytest
+from tests.conftest import auth_headers_and_csrf
 """
 Tests for OTP reset flow
 """
@@ -56,10 +58,13 @@ def test_user_can_start_otp_reset(client, db):
     _create_role(db, "user")
     user = _create_user(db, "otpuser", "otpuser@example.com", "ValidPass123!", "user")
 
-    access_token = create_access_token(str(user.id))
+    headers, cookies = auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/users/otp/reset",
-        headers={"Authorization": f"Bearer {access_token}", "Host": "localhost"},
+        headers=headers,
     )
 
     assert response.status_code == 200
@@ -79,10 +84,13 @@ def test_user_can_confirm_otp_reset(client, db):
     user = _create_user(db, "otpconfirm", "otpconfirm@example.com", "ValidPass123!", "user")
     previous_secret = user.otp_secret
 
-    access_token = create_access_token(str(user.id))
+    headers, cookies = auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     start_response = client.post(
         "/api/v1/users/otp/reset",
-        headers={"Authorization": f"Bearer {access_token}", "Host": "localhost"},
+        headers=headers,
     )
     assert start_response.status_code == 200
 
@@ -92,7 +100,7 @@ def test_user_can_confirm_otp_reset(client, db):
     otp_code = pyotp.TOTP(token_entry.otp_token).now()
     confirm_response = client.post(
         "/api/v1/users/otp/reset/confirm",
-        headers={"Authorization": f"Bearer {access_token}", "Host": "localhost"},
+        headers=headers,
         json={
             "token": token_entry.token,
             "otp_code": otp_code,
@@ -114,10 +122,13 @@ def test_user_cannot_confirm_otp_reset_with_invalid_code(client, db):
     user = _create_user(db, "otpinvalid", "otpinvalid@example.com", "ValidPass123!", "user")
     previous_secret = user.otp_secret
 
-    access_token = create_access_token(str(user.id))
+    headers, cookies = auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     start_response = client.post(
         "/api/v1/users/otp/reset",
-        headers={"Authorization": f"Bearer {access_token}", "Host": "localhost"},
+        headers=headers,
     )
     assert start_response.status_code == 200
 
@@ -126,7 +137,7 @@ def test_user_cannot_confirm_otp_reset_with_invalid_code(client, db):
 
     confirm_response = client.post(
         "/api/v1/users/otp/reset/confirm",
-        headers={"Authorization": f"Bearer {access_token}", "Host": "localhost"},
+        headers=headers,
         json={
             "token": token_entry.token,
             "otp_code": "000000",
@@ -153,10 +164,13 @@ def test_support_can_start_otp_reset_for_user(client, db, monkeypatch):
     target_user = _create_user(db, "otp_target", "otp-target@example.com", "ValidPass123!", "user")
     support_user = _create_user(db, "otp_support", "otp-support@example.com", "ValidPass123!", "support")
 
-    access_token = create_access_token(str(support_user.id))
+    headers, cookies = auth_headers_and_csrf(support_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.put(
         f"/api/v1/users/{target_user.id}/otp-reset",
-        headers={"Authorization": f"Bearer {access_token}", "Host": "localhost"},
+        headers=headers,
     )
 
     assert response.status_code == 200
@@ -182,10 +196,13 @@ def test_regular_user_cannot_start_otp_reset_for_user(client, db):
     regular_user = _create_user(db, "otp_regular", "otp-regular@example.com", "ValidPass123!", "user")
     target_user = _create_user(db, "otp_other", "otp-other@example.com", "ValidPass123!", "user")
 
-    access_token = create_access_token(str(regular_user.id))
+    headers, cookies = auth_headers_and_csrf(regular_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.put(
         f"/api/v1/users/{target_user.id}/otp-reset",
-        headers={"Authorization": f"Bearer {access_token}", "Host": "localhost"},
+        headers=headers,
     )
 
     assert response.status_code == 403

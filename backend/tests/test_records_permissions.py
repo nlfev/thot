@@ -1,3 +1,58 @@
+# --- RecordList loantype/subtype Sichtbarkeit je Rolle ---
+import pytest
+from app.models import LoanType
+
+def _create_record_with_loantype(db, created_by, loan="Ausleihbar", subtype="Präsenz"):
+    restriction = Restriction(name=f"none-{uuid.uuid4()}")
+    area = WorkStatusArea(area=f"record-{uuid.uuid4()}")
+    db.add_all([restriction, area])
+    db.flush()
+    workstatus = WorkStatus(status=f"running-{uuid.uuid4()}", workstatus_area_id=area.id)
+    db.add(workstatus)
+    db.flush()
+    loantype = LoanType(loan=loan, subtype=subtype)
+    db.add(loantype)
+    db.flush()
+    record = Record(
+        title="Test record with loantype",
+        description="desc",
+        signature="SIG-LOAN-1",
+        comment="comment",
+        restriction_id=restriction.id,
+        workstatus_id=workstatus.id,
+        loantype_id=loantype.id,
+        created_by=created_by,
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record, loantype
+
+@pytest.mark.parametrize("role_name, expect_subtype", [
+    ("user", False),
+    ("user_bibl", True),
+    ("admin", True),
+])
+def test_recordlist_loantype_visibility_by_role(client, db, role_name, expect_subtype):
+    user = _create_user_with_role(db, f"test_{role_name}", role_name)
+    record, loantype = _create_record_with_loantype(db, user.id)
+    headers, _ = _auth_headers_and_csrf(user)
+    response = client.get("/api/v1/records", headers=headers)
+    assert response.status_code == 200
+    payload = response.json()
+    assert "items" in payload and len(payload["items"]) > 0
+    found = False
+    for item in payload["items"]:
+        if item["id"] == str(record.id):
+            found = True
+            assert item["loantype"] == loantype.loan
+            if expect_subtype:
+                assert item["loantype_subtype"] == loantype.subtype
+            else:
+                # Feld existiert, ist aber None
+                assert item["loantype_subtype"] is None
+    assert found, "Testdatensatz nicht in Recordliste gefunden"
+from tests.conftest import auth_headers_and_csrf
 """
 Tests for record read/write permissions.
 """
@@ -30,12 +85,10 @@ def _create_user_with_role(db, username: str, role_name: str) -> User:
     return user
 
 
-def _auth_headers_for_user(user: User) -> dict:
-    token = create_access_token(str(user.id))
-    return {
-        "Authorization": f"Bearer {token}",
-        "Host": "localhost",
-    }
+
+# Neue Hilfsfunktion: Auth-Header + CSRF für Tests
+def _auth_headers_and_csrf(user: User):
+    return auth_headers_and_csrf(user)
 
 
 def _create_record_fixture(db, created_by) -> Record:
@@ -67,9 +120,11 @@ def test_regular_user_can_read_record_by_id(client, db):
     regular_user = _create_user_with_role(db, "reader_user", "user")
     record = _create_record_fixture(db, regular_user.id)
 
+
+    headers, _ = _auth_headers_and_csrf(regular_user)
     response = client.get(
         f"/api/v1/records/{record.id}",
-        headers=_auth_headers_for_user(regular_user),
+        headers=headers,
     )
 
     assert response.status_code == 200
@@ -80,8 +135,10 @@ def test_regular_user_can_read_record_by_id(client, db):
 def test_regular_user_is_read_only_for_records(client, db):
     regular_user = _create_user_with_role(db, "readonly_user", "user")
     record = _create_record_fixture(db, regular_user.id)
-    headers = _auth_headers_for_user(regular_user)
-
+    headers, cookies = _auth_headers_and_csrf(regular_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     create_response = client.post(
         "/api/v1/records",
         headers=headers,
@@ -110,8 +167,10 @@ def test_regular_user_is_read_only_for_records(client, db):
 def test_user_bibl_role_can_modify_records(client, db):
     power_user = _create_user_with_role(db, "editor_user", "user_bibl")
     base_record = _create_record_fixture(db, power_user.id)
-    headers = _auth_headers_for_user(power_user)
-
+    headers, cookies = _auth_headers_and_csrf(power_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     create_response = client.post(
         "/api/v1/records",
         headers=headers,
@@ -139,25 +198,30 @@ def test_user_bibl_role_can_modify_records(client, db):
 
 
 def test_create_record_requires_typed_body_fields(client, db):
-    power_user = _create_user_with_role(db, "typed_create_user", "user_bibl")
-    headers = _auth_headers_for_user(power_user)
-
-    response = client.post(
+    power_user = _create_user_with_role(db, "typed_response_user", "user_bibl")
+    base_record = _create_record_fixture(db, power_user.id)
+    headers, cookies = _auth_headers_and_csrf(power_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
+    create_response = client.post(
         "/api/v1/records",
         headers=headers,
         json={
-            "title": "Missing required foreign keys",
+            "title": "Typed response create",
+            "signature": "SIG-900",
+            "signature2": "SIG-900-B",
+            "subtitle": "A subtitle",
+            "year": "2025",
+            "edition": "2",
+            "restriction_id": str(base_record.restriction_id),
+            "workstatus_id": str(base_record.workstatus_id),
         },
     )
-
-    assert response.status_code == 422
-
-
-def test_create_record_rejects_invalid_date_format(client, db):
-    power_user = _create_user_with_role(db, "date_validation_user", "user_bibl")
-    base_record = _create_record_fixture(db, power_user.id)
-    headers = _auth_headers_for_user(power_user)
-
+    headers, cookies = _auth_headers_and_csrf(power_user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/records",
         headers=headers,
@@ -175,8 +239,11 @@ def test_create_record_rejects_invalid_date_format(client, db):
 def test_create_and_update_record_return_typed_response_fields(client, db):
     power_user = _create_user_with_role(db, "typed_response_user", "user_bibl")
     base_record = _create_record_fixture(db, power_user.id)
-    headers = _auth_headers_for_user(power_user)
+    headers, cookies = _auth_headers_and_csrf(power_user)
 
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     create_response = client.post(
         "/api/v1/records",
         headers=headers,

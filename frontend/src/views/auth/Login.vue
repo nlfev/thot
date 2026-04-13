@@ -145,10 +145,8 @@ export default defineComponent({
       )
 
       if (success) {
-        const redirectTarget = typeof this.$route.query.redirect === 'string'
-          ? this.$route.query.redirect
-          : '/'
-        this.$router.push(redirectTarget)
+        // Nach Login: Weiterleitung auf die Startseite, damit die Login-Maske verschwindet
+        window.location.href = "/"
       } else {
         this.error = this.getLoginErrorMessage()
       }

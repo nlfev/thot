@@ -16,8 +16,11 @@ env_path = Path(__file__).parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
 
+
 class Config:
     """Base configuration"""
+    # Cookie security (set True in production with HTTPS)
+    COOKIE_SECURE = os.getenv("COOKIE_SECURE", "0") in ("1", "true", "True")
 
     # Application (can be overridden via environment variables)
     APP_NAME = os.getenv("APP_NAME", "NLF Database")

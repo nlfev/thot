@@ -11,9 +11,11 @@ import logging
 from pathlib import Path
 from typing import AsyncIterator
 
+
 from config import config
 from app.database import Base, engine, get_db
 from app.services.page_ocr_job_service import PageOcrJobService
+from app.middleware.csrf import CSRFMiddleware
 
 # Configure logging
 logging.basicConfig(level=config.LOG_LEVEL)
@@ -48,6 +50,7 @@ app = FastAPI(
     ]
 )
 
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -57,18 +60,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add CSRF middleware (use a strong secret from config or .env)
+app.add_middleware(CSRFMiddleware, secret_key=config.SECRET_KEY)
+
 # Add Trusted Host middleware
 app.add_middleware(
     TrustedHostMiddleware,
     allowed_hosts=["localhost", "127.0.0.1", "*.example.com"],
 )
 
-# Mount static files for uploaded documents
-# Ensure upload directory exists
-config.ensure_upload_directory()
-if config.UPLOAD_DIRECTORY.exists():
-    app.mount("/uploads", StaticFiles(directory=str(config.UPLOAD_DIRECTORY)), name="uploads")
-    logger.info(f"Static files (uploads) mounted at /uploads from {config.UPLOAD_DIRECTORY}")
 
 # Mount assets for logo and other static assets
 assets_dir = Path(__file__).parent.parent / "assets"

@@ -231,6 +231,8 @@ async def list_records(
                 description=record.description,
                 signature=record.signature,
                 comment=record.comment,
+                loantype=record.loantype.loan if record.loantype else None,
+                loantype_subtype=(record.loantype.subtype if (record.loantype and (current_user.has_role("admin") or current_user.has_role("user_bibl"))) else None),
                 restriction_id=record.restriction_id,
                 restriction=record.restriction.name if record.restriction else None,
                 workstatus_id=record.workstatus_id,

@@ -13,6 +13,7 @@ from app.routes import pages as pages_routes
 from app.services.page_ocr_job_service import PageOcrJobService
 from app.services.pdf_ocr_service import PdfOcrService
 from app.utils import create_access_token, hash_password
+from app.middleware.csrf import CSRFMiddleware
 from config import config
 
 
@@ -62,12 +63,18 @@ def _create_user_with_role(db, username: str, role_name: str) -> User:
     return user
 
 
-def _auth_headers_for_user(user: User) -> dict:
+
+# Hilfsfunktion: Auth-Header + CSRF-Token für Tests
+def _auth_headers_and_csrf(user: User):
     token = create_access_token(str(user.id))
-    return {
+    csrf_token = CSRFMiddleware.generate_csrf_token()
+    headers = {
         "Authorization": f"Bearer {token}",
         "Host": "localhost",
+        "X-CSRF-Token": csrf_token,
     }
+    cookies = {"csrf_token": csrf_token}
+    return headers, cookies
 
 
 def _create_record_fixture(db, created_by, signature: str = "  My Signature  "):
@@ -137,10 +144,13 @@ def test_create_page_returns_pending_ocr_status_when_processing_is_backgrounded(
 
     user = _create_user_with_role(db, "page_async_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id, signature="Async Signature")
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Async Page",
             "record_id": str(record.id),
@@ -163,10 +173,13 @@ def test_create_page_splits_multi_page_pdf_into_multiple_pages(client, db, tmp_p
     monkeypatch.setattr(config, "UPLOAD_DIRECTORY", tmp_path)
     user = _create_user_with_role(db, "page_split_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id)
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Ignored for multi-page",
             "record_id": str(record.id),
@@ -212,10 +225,13 @@ def test_create_page_single_pdf_keeps_single_page_behavior(client, db, tmp_path,
     monkeypatch.setattr(config, "UPLOAD_DIRECTORY", tmp_path)
     user = _create_user_with_role(db, "page_single_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id, signature="Single Signature")
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Cover Page",
             "record_id": str(record.id),
@@ -246,10 +262,13 @@ def test_create_page_splits_image_based_multi_page_pdf(client, db, tmp_path, mon
     monkeypatch.setattr(config, "UPLOAD_DIRECTORY", tmp_path)
     user = _create_user_with_role(db, "page_scan_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id, signature="Scan Signature")
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Scanned Input",
             "record_id": str(record.id),
@@ -275,10 +294,13 @@ def test_create_page_ignores_original_filename_special_characters(client, db, tm
     monkeypatch.setattr(config, "UPLOAD_DIRECTORY", tmp_path)
     user = _create_user_with_role(db, "page_filename_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id, signature=" Special Signature ")
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Named Page",
             "record_id": str(record.id),
@@ -302,10 +324,13 @@ def test_create_page_rejects_oversized_pdf(client, db, tmp_path, monkeypatch):
     monkeypatch.setattr(config, "MAX_UPLOAD_SIZE", 128)
     user = _create_user_with_role(db, "page_large_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id)
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Too Large",
             "record_id": str(record.id),
@@ -325,10 +350,13 @@ def test_create_page_rejects_corrupted_pdf(client, db, tmp_path, monkeypatch):
     monkeypatch.setattr(config, "UPLOAD_DIRECTORY", tmp_path)
     user = _create_user_with_role(db, "page_bad_pdf_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id)
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Broken PDF",
             "record_id": str(record.id),
@@ -348,10 +376,13 @@ def test_create_page_rejects_password_protected_pdf(client, db, tmp_path, monkey
     monkeypatch.setattr(config, "UPLOAD_DIRECTORY", tmp_path)
     user = _create_user_with_role(db, "page_locked_pdf_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id)
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Locked PDF",
             "record_id": str(record.id),
@@ -371,10 +402,13 @@ def test_update_page_rejects_multi_page_pdf(client, db, tmp_path, monkeypatch):
     monkeypatch.setattr(config, "UPLOAD_DIRECTORY", tmp_path)
     user = _create_user_with_role(db, "page_update_multi_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id)
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     create_response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Original Page",
             "record_id": str(record.id),
@@ -391,7 +425,7 @@ def test_update_page_rejects_multi_page_pdf(client, db, tmp_path, monkeypatch):
 
     update_response = client.put(
         f"/api/v1/pages/{page_id}",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Original Page",
             "record_id": str(record.id),
@@ -413,10 +447,13 @@ def test_e2e_current_file_is_set_on_create_and_update(client, db, tmp_path, monk
 
     user = _create_user_with_role(db, "page_e2e_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id, signature="E2E Signature")
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     create_response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "E2E Page",
             "record_id": str(record.id),
@@ -441,7 +478,7 @@ def test_e2e_current_file_is_set_on_create_and_update(client, db, tmp_path, monk
 
     update_response = client.put(
         f"/api/v1/pages/{page_id}",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "E2E Page Updated",
             "record_id": str(record.id),
@@ -475,10 +512,13 @@ def test_create_page_sets_comment_with_detected_page_number(client, db, tmp_path
 
     user = _create_user_with_role(db, "page_number_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id, signature="Number Signature")
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Numbered Page",
             "record_id": str(record.id),
@@ -503,10 +543,13 @@ def test_create_page_sets_comment_when_page_number_not_found(client, db, tmp_pat
 
     user = _create_user_with_role(db, "page_number_missing_user", "admin")
     record, restriction, workstatus = _create_record_fixture(db, user.id, signature="Missing Number Signature")
-
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
     response = client.post(
         "/api/v1/pages",
-        headers=_auth_headers_for_user(user),
+        headers=headers,
         data={
             "name": "Number Missing Page",
             "record_id": str(record.id),
@@ -758,3 +801,43 @@ def test_extract_positional_page_number_skips_body_reference(tmp_path, monkeypat
     result = pages_routes._extract_positional_page_number_from_pdf("test.pdf")
 
     assert result is None
+
+
+def test_create_and_get_page_with_order_by(client, db, tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "UPLOAD_DIRECTORY", tmp_path)
+    user = _create_user_with_role(db, "order_by_user", "admin")
+    record, restriction, workstatus = _create_record_fixture(db, user.id, signature="OrderBy Signature")
+    headers, cookies = _auth_headers_and_csrf(user)
+    # Erstelle eine Seite mit explizitem order_by
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
+    response = client.post(
+        "/api/v1/pages",
+        headers=headers,
+        data={
+            "name": "OrderBy Page",
+            "record_id": str(record.id),
+            "restriction_id": str(restriction.id),
+            "workstatus_id": str(workstatus.id),
+            "order_by": 7,
+        },
+        files={
+            "file": ("orderby.pdf", _build_pdf(1), "application/pdf"),
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert "order_by" in payload
+    assert payload["order_by"] == 7
+    page_id = payload["id"]
+
+    # Hole die Seite und prüfe order_by
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
+    get_response = client.get(f"/api/v1/pages/{page_id}", headers=headers)
+    assert get_response.status_code == 200
+    get_payload = get_response.json()
+    assert "order_by" in get_payload
+    assert get_payload["order_by"] == 7
