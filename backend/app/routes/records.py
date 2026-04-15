@@ -343,6 +343,11 @@ async def download_combined_pdf(
             detail="Record not found"
         )
     
+
+    restriction_message = ""
+    if record.restriction_id and record.restriction_id != UUID("00000000-0000-0000-0000-000000000001"):
+        restriction_message = "Restricted"
+
     # Get all pages for this record that have PDF files, ordered by name
     pages = (
         db.query(Page)
@@ -361,7 +366,7 @@ async def download_combined_pdf(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No PDF pages found for this record"
         )
-    
+
     try:
         from app.services.pdf_watermark_service import create_watermarked_pdf
         
@@ -384,8 +389,10 @@ async def download_combined_pdf(
                 downloaded_at=downloaded_at,
                 record_name=record.title,
                 record_signature=record.signature,
-                page_text=page.page,
+                page_text=page.name,
                 watermark_image_path=config.get_watermark_image_path(),
+                watermark_copyright=config.WATERMARK_COPYRIGHT,
+                restriction_message=restriction_message,
             )
             
             # Read the watermarked PDF and append all its pages to the combined PDF
@@ -411,7 +418,7 @@ async def download_combined_pdf(
         # Remove or replace characters that are problematic in filenames
         safe_filename = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in safe_filename)
         safe_filename = safe_filename[:100]  # Limit length
-        download_name = f"{safe_filename}_combined.pdf"
+        download_name = f"{safe_filename}.pdf"
         
         return Response(
             content=combined_bytes,

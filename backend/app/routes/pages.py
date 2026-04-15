@@ -834,6 +834,10 @@ async def download_watermarked_pdf(
             detail="No PDF file available for this page",
         )
 
+    restriction_message = ""
+    if page.record.restriction_id and page.record.restriction_id != uuid.UUID("00000000-0000-0000-0000-000000000001"):
+        restriction_message = "Restricted"
+
     source_pdf_path = (config.UPLOAD_DIRECTORY / pdf_file).resolve()
     if not source_pdf_path.exists() or not source_pdf_path.is_file():
         raise HTTPException(
@@ -850,8 +854,10 @@ async def download_watermarked_pdf(
             downloaded_at=datetime.now(),
             record_name=page.record.title if page.record else None,
             record_signature=page.record.signature if page.record else None,
-            page_text=page.page,
+            page_text=page.name,
             watermark_image_path=config.get_watermark_image_path(),
+            watermark_copyright=config.WATERMARK_COPYRIGHT,
+            restriction_message=restriction_message,
         )
     except Exception as exc:
         raise HTTPException(
@@ -860,7 +866,7 @@ async def download_watermarked_pdf(
         )
 
     filename_stem = Path(pdf_file).stem
-    download_name = f"{filename_stem}_watermarked.pdf"
+    download_name = f"{filename_stem}.pdf"
 
     return Response(
         content=watermark_bytes,
@@ -907,6 +913,10 @@ async def view_watermarked_pdf(
             detail="Source PDF file not found on server",
         )
 
+    restriction_message = ""
+    if page.record.restriction_id and page.record.restriction_id != uuid.UUID("00000000-0000-0000-0000-000000000001"):
+        restriction_message = "Restricted"
+
     try:
         from app.services.pdf_watermark_service import create_watermarked_pdf
 
@@ -916,8 +926,10 @@ async def view_watermarked_pdf(
             downloaded_at=datetime.now(),
             record_name=page.record.title if page.record else None,
             record_signature=page.record.signature if page.record else None,
-            page_text=page.page,
+            page_text=page.name,
             watermark_image_path=config.get_watermark_image_path(),
+            watermark_copyright=config.WATERMARK_COPYRIGHT,
+            restriction_message=restriction_message,
         )
     except Exception as exc:
         raise HTTPException(
@@ -926,7 +938,7 @@ async def view_watermarked_pdf(
         )
 
     filename_stem = Path(pdf_file).stem
-    view_name = f"{filename_stem}_watermarked.pdf"
+    view_name = f"{filename_stem}.pdf"
 
     return Response(
         content=watermark_bytes,
@@ -983,8 +995,9 @@ async def get_thumbnail_with_watermark(
             downloaded_at=datetime.now(),
             record_name=page.record.title if page.record else None,
             record_signature=page.record.signature if page.record else None,
-            page_text=page.page,
+            page_text=page.name,
             watermark_image_path=config.get_watermark_image_path(),
+            watermark_copyright=config.WATERMARK_COPYRIGHT,
             thumbnail_width=width,
         )
     except Exception as exc:

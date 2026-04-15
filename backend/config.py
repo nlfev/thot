@@ -120,6 +120,7 @@ class Config:
     MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", 50 * 1024 * 1024))  # 50MB default
     ALLOWED_FILE_EXTENSIONS = [".pdf"]
     WATERMARK_IMAGE_PATH = os.getenv("WATERMARK_IMAGE_PATH", "")
+    WATERMARK_COPYRIGHT = os.getenv("WATERMARK_COPYRIGHT", "")
 
     # QR Code logo (optional, embedded centred at 72�72 px)
     QR_CODE_LOGO_PATH = os.getenv("QR_CODE_LOGO_PATH", "")
