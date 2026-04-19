@@ -433,6 +433,8 @@ export const messages = {
       qrLoadError: 'Failed to load QR code',
       resolvingPublicLink: 'Resolving public record link...',
       publicLinkInvalid: 'Public link is invalid or no longer available.',
+      citationLink: 'Citation Link',
+      citationLinkCopy: 'Copy citation link',
     },
 
     // Pages
@@ -1001,6 +1003,8 @@ export const messages = {
       qrLoadError: 'QR-Code konnte nicht geladen werden',
       resolvingPublicLink: 'Öffentlicher Datensatzlink wird aufgelöst...',
       publicLinkInvalid: 'Der öffentliche Link ist ungültig oder nicht mehr verfügbar.',
+      citationLink: 'Zitat-Link',
+      citationLinkCopy: 'Link kopieren',
     },
 
     // Pages

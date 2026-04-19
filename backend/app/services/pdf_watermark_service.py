@@ -28,6 +28,7 @@ def _build_overlay_page(
     downloaded_at: datetime,
     record_name: Optional[str],
     record_signature: Optional[str],
+    record_pdf_url: Optional[str],
     page_text: Optional[str],
     watermark_image_path: Optional[Path],
     watermark_copyright: Optional[str],
@@ -99,6 +100,7 @@ def _build_overlay_page(
 
     info_lines = [
         final_text,
+        f"Zitat-Link: {_fit_text(record_pdf_url, 100)}",
         f"Download {downloaded_at.strftime('%Y-%m-%d %H:%M')} by {_fit_text(username, 48)}",
     ]
 
@@ -106,6 +108,21 @@ def _build_overlay_page(
     line_y = top_y
     for line in info_lines:
         overlay.drawRightString(right_x, line_y, line)
+        if line.startswith("Zitat-Link:") and record_pdf_url:
+            # Berechne die Textbreite
+            text = _fit_text(record_pdf_url, 100)
+            link_width = overlay.stringWidth(f"Zitat-Link: {text}", "Helvetica", 9)
+            # Setze das Rechteck für den Link (x1, y1, x2, y2)
+            overlay.linkURL(
+                record_pdf_url,
+                (
+                    right_x - link_width,  # x1 (linker Rand)
+                    line_y - 2,            # y1 (etwas unterhalb)
+                    right_x,               # x2 (rechter Rand)
+                    line_y + 10            # y2 (etwas oberhalb)
+                ),
+                relative=0
+            )
         line_y -= 12
 
     overlay.save()
@@ -119,6 +136,7 @@ def create_watermarked_pdf(
     downloaded_at: datetime,
     record_name: Optional[str],
     record_signature: Optional[str],
+    record_pdf_url: Optional[str],
     page_text: Optional[str],
     watermark_image_path: Optional[Path] = None,
     watermark_copyright: Optional[str] = None,
@@ -139,6 +157,7 @@ def create_watermarked_pdf(
             downloaded_at=downloaded_at,
             record_name=record_name,
             record_signature=record_signature,
+            record_pdf_url=record_pdf_url,
             page_text=page_text,
             watermark_image_path=watermark_image_path,
             watermark_copyright=watermark_copyright,

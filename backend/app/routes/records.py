@@ -478,7 +478,8 @@ async def download_combined_pdf(
 
     try:
         from app.services.pdf_watermark_service import create_watermarked_pdf
-        
+        from app.utils.public_links import build_record_public_url_pdf
+
         # Create a PDF writer to combine all pages
         combined_writer = PdfWriter()
         downloaded_at = datetime.now()
@@ -498,6 +499,7 @@ async def download_combined_pdf(
                 downloaded_at=downloaded_at,
                 record_name=record.title,
                 record_signature=record.signature,
+                record_pdf_url=build_record_public_url_pdf(page.record.id) if page.record else None,
                 page_text=page.name,
                 watermark_image_path=config.get_watermark_image_path(),
                 watermark_copyright=config.WATERMARK_COPYRIGHT,

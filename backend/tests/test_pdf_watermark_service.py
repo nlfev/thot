@@ -29,6 +29,7 @@ def test_create_watermarked_pdf_without_logo(tmp_path):
         downloaded_at=datetime(2026, 4, 15, 12, 0),
         record_name="TestRecord",
         record_signature="SIG123",
+        record_pdf_url="https://example.com/test.pdf",
         page_text="1",
         watermark_image_path=None,
         watermark_copyright="(c) Test"
@@ -49,6 +50,7 @@ def test_create_watermarked_pdf_with_invalid_logo(tmp_path):
         downloaded_at=datetime(2026, 4, 15, 12, 0),
         record_name="TestRecord",
         record_signature="SIG123",
+        record_pdf_url="https://example.com/test.pdf",
         page_text="1",
         watermark_image_path=fake_logo,
         watermark_copyright="(c) Test"

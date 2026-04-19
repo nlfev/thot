@@ -847,6 +847,7 @@ async def download_watermarked_pdf(
 
     try:
         from app.services.pdf_watermark_service import create_watermarked_pdf
+        from app.utils.public_links import build_record_public_url_pdf
 
         watermark_bytes = create_watermarked_pdf(
             source_pdf=source_pdf_path,
@@ -854,6 +855,7 @@ async def download_watermarked_pdf(
             downloaded_at=datetime.now(),
             record_name=page.record.title if page.record else None,
             record_signature=page.record.signature if page.record else None,
+            record_pdf_url=build_record_public_url_pdf(page.record.id) if page.record else None,
             page_text=page.name,
             watermark_image_path=config.get_watermark_image_path(),
             watermark_copyright=config.WATERMARK_COPYRIGHT,
@@ -919,6 +921,7 @@ async def view_watermarked_pdf(
 
     try:
         from app.services.pdf_watermark_service import create_watermarked_pdf
+        from app.utils.public_links import build_record_public_url_pdf
 
         watermark_bytes = create_watermarked_pdf(
             source_pdf=source_pdf_path,
@@ -926,6 +929,7 @@ async def view_watermarked_pdf(
             downloaded_at=datetime.now(),
             record_name=page.record.title if page.record else None,
             record_signature=page.record.signature if page.record else None,
+            record_pdf_url=build_record_public_url_pdf(page.record.id) if page.record else None,
             page_text=page.name,
             watermark_image_path=config.get_watermark_image_path(),
             watermark_copyright=config.WATERMARK_COPYRIGHT,
@@ -1053,6 +1057,7 @@ async def list_pages(
     # Default sort: order_by ascending, fallback to name if null
     pages = query.order_by(Page.order_by.asc().nullslast(), Page.name.asc()).distinct().offset(skip).limit(limit).all()
     
+    from app.utils.public_links import build_record_public_url_pdf
     return {
         "items": [
             {
@@ -1078,6 +1083,7 @@ async def list_pages(
                 "created_on": page.created_on.isoformat() if page.created_on else None,
                 "created_by": str(page.created_by) if page.created_by else None,
                 "order_by": page.order_by,
+                "pdf_public_url": build_record_public_url_pdf(page.record_id) if page.record_id else None,
             }
             for page in pages
         ],

@@ -138,6 +138,12 @@ const routes = [
     meta: { requiresAuth: false },
   },
   {
+    path: '/pdf/:encodedId',
+    name: 'PublicRecordPdfLink',
+    component: () => import('@/views/records/PublicRecordPdfLink.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/records/:recordId/pages',
     name: 'PageList',
     component: () => import('@/views/records/PageList.vue'),
