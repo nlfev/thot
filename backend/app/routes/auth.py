@@ -129,9 +129,9 @@ from fastapi import Response
 
 @router.get("/register/confirm/{token}")
 async def get_registration_confirmation(
-    token: str,
-    db: Session = Depends(get_db),
-    response: Response,
+        token: str,
+        response: Response,
+        db: Session = Depends(get_db),
 ):
     """
     Get registration details to confirm before completing registration
