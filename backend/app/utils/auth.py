@@ -17,15 +17,17 @@ from sqlalchemy.orm import Session, selectinload
 from config import config
 from app.database import get_db
 
-from app.services.user_service import UserService
+
 
 from app.models.role import Role
 from app.models.role_permission import RolePermission
 from app.models.user import User
 from app.models.user_role import UserRole
 
-# from fastapi import Request
-# from fastapi.security import HTTPAuthorizationCredentials
+
+def get_user_service():
+    from app.services.user_service import UserService
+    return UserService
 
 security = HTTPBearer()
 
