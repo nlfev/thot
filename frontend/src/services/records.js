@@ -1,4 +1,4 @@
-import axios from 'axios'
+import api from './api'
 
 const API_BASE_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
@@ -21,6 +21,6 @@ export async function fetchRecords(params = {}) {
   Object.entries(query).forEach(([key, value]) => {
     if (value) url.searchParams.append(key, value)
   })
-  const response = await axios.get(url.toString())
+  const response = await api.get(url.toString())
   return response.data
 }
