@@ -253,6 +253,7 @@ async def list_records(
                 publisher=f"{record.publisher.companyname}{' (' + record.publisher.town + ')' if record.publisher.town else ''}" if record.publisher else "",
                 created_on=record.created_on,
                 created_by=record.created_by,
+                entered_on=record.enter_date,
                 page_count=db.query(func.count(Page.id)).filter(
                     Page.record_id == record.id,
                     Page.active == True

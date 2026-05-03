@@ -732,6 +732,7 @@ class RecordListItemResponse(BaseModel):
     publisher: str = ""
     created_on: Optional[datetime] = None
     created_by: Optional[UUID] = None
+    entered_on: Optional[datetime] = None
     page_count: int = 0
 
 

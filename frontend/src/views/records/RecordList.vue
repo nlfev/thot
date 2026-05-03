@@ -108,7 +108,7 @@
             <th>{{ $t('records.keywordsNames') }}</th>
             <th>{{ $t('records.keywordsLocations') }}</th>
             <th>{{ $t('records.loantype') }}</th>
-            <th v-if="!defaultListMode && (authStore.hasRole('admin') || authStore.hasRole('user_bibl'))">{{ $t('records.loantypeSubtype') }}</th>
+            <!-- <th v-if="!defaultListMode && (authStore.hasRole('admin') || authStore.hasRole('user_bibl'))">{{ $t('records.loantypeSubtype') }}</th> -->
             <th v-if="!defaultListMode">{{ $t('records.restriction') }}</th>
             <th v-if="!defaultListMode">{{ $t('records.workstatus') }}</th>
             <th>{{ $t('pages.totalCount') }}</th>
@@ -145,7 +145,7 @@
             <td v-if="!defaultListMode">{{ record.restriction || '-' }}</td>
             <td v-if="!defaultListMode">{{ record.workstatus || '-' }}</td>
             <td class="pages-count">{{ record.page_count || 0 }}</td>
-            <td v-if="!defaultListMode">{{ formatDate(record.created_on) }}</td>
+            <td v-if="!defaultListMode">{{ formatDate(record.entered_on) }}</td>
             <td class="actions-cell">
               <router-link
                 v-if="record.page_count > 0"
