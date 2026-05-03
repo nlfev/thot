@@ -1206,54 +1206,75 @@ async def create_page(
                 start_order = (max_order[0] if max_order and max_order[0] is not None else 0) + 1
                 new_pages = []
                 for i in range(num_pages):
-                    writer = PdfWriter()
-                    writer.add_page(reader.pages[i])
-                    buffer = BytesIO()
-                    writer.write(buffer)
-                    single_pdf_bytes = buffer.getvalue()
-                    # Always use 'Seite_{i+1}.pdf' for split pages
-                    filename = f"Seite_{i+1}.pdf"
-                    rel_path = _save_pdf_content(single_pdf_bytes, record_signature, str(record_uuid), filename, storage_subdir="origin")
-                    # Always copy file to current folder as Seite_{i+1}_current.pdf
-                    signature_folder = _build_signature_folder_name(record_signature, str(record_uuid))
-                    current_filename = f"Seite_{i+1}_current.pdf"
-                    current_rel_path = f"{signature_folder}/current/{current_filename}"
-                    origin_abs = config.UPLOAD_DIRECTORY / rel_path
-                    current_abs = config.UPLOAD_DIRECTORY / current_rel_path
-                    current_abs.parent.mkdir(parents=True, exist_ok=True)
-                    with open(current_abs, "wb") as f_out:
-                        f_out.write(single_pdf_bytes)
-                    # Kommentar für jede Seite bestimmen
-                    text = reader.pages[i].extract_text() or ""
-                    page_number = None
-                    if hasattr(pages_routes, "_extract_page_number_from_pdf_text"):
-                        page_number = pages_routes._extract_page_number_from_pdf_text(text)
-                    if page_number is not None:
-                        page_comment = f"Seite: {page_number}"
-                    else:
-                        page_comment = "Seite: nicht gefunden"
-                    # Setze order_by für jede neue Seite
-                    this_order = start_order + i
-                    new_page = PageService.create_page(
-                        db=db,
-                        name=f"Seite {i+1}",
-                        record_id=record_uuid,
-                        restriction_id=restriction_uuid,
-                        user_id=user_uuid,
-                        description=description,
-                        page=page,
-                        comment=page_comment,
-                        location_file=rel_path,
-                        workstatus_id=workstatus_uuid,
-                        order_by=this_order,
-                    )
-                    db.flush()
-                    db.refresh(new_page)
-                    # Ensure current_file is set to current_rel_path if OCR disabled
-                    if getattr(config, "OCR_PIPELINE_ENABLED", True) is False:
-                        new_page.current_file = current_rel_path
-                        db.flush()
-                    new_pages.append(new_page)
+                    try:
+                        writer = PdfWriter()
+                        writer.add_page(reader.pages[i])
+                        buffer = BytesIO()
+                        writer.write(buffer)
+                        single_pdf_bytes = buffer.getvalue()
+                        # Always use 'Seite_{i+1}.pdf' for split pages
+                        filename = f"Seite_{i+1}.pdf"
+                        rel_path = _save_pdf_content(single_pdf_bytes, record_signature, str(record_uuid), filename, storage_subdir="origin")
+                        # Always copy file to current folder as Seite_{i+1}_current.pdf
+                        signature_folder = _build_signature_folder_name(record_signature, str(record_uuid))
+                        current_filename = f"Seite_{i+1}_current.pdf"
+                        current_rel_path = f"{signature_folder}/current/{current_filename}"
+                        origin_abs = config.UPLOAD_DIRECTORY / rel_path
+                        current_abs = config.UPLOAD_DIRECTORY / current_rel_path
+                        current_abs.parent.mkdir(parents=True, exist_ok=True)
+                        with open(current_abs, "wb") as f_out:
+                            f_out.write(single_pdf_bytes)
+                        # Kommentar für jede Seite bestimmen
+                        text = reader.pages[i].extract_text() or ""
+                        page_number = None
+                        if hasattr(pages_routes, "_extract_page_number_from_pdf_text"):
+                            page_number = pages_routes._extract_page_number_from_pdf_text(text)
+                        if page_number is not None:
+                            page_comment = f"Seite: {page_number}"
+                        else:
+                            page_comment = "Seite: nicht gefunden"
+                        # Setze order_by für jede neue Seite
+                        this_order = start_order + i
+                        # Erweiterte Fehlerausgabe im Entwicklungsmodus
+                        try:
+                            new_page = PageService.create_page(
+                                db=db,
+                                name=f"Seite {i+1}",
+                                record_id=record_uuid,
+                                restriction_id=restriction_uuid,
+                                user_id=user_uuid,
+                                description=description,
+                                page=page,
+                                comment=page_comment,
+                                location_file=rel_path,
+                                workstatus_id=workstatus_uuid,
+                                order_by=this_order,
+                            )
+                            db.flush()
+                            db.refresh(new_page)
+                        except Exception as e:
+                            import traceback
+                            env = getattr(config, "ENVIRONMENT", "production")
+                            detail = f"Fehler beim Erstellen der Page (Seite {i+1}): {str(e)}"
+                            if env == "development":
+                                detail += (f"\nFelder: name=Seite {i+1}, record_id={record_uuid}, restriction_id={restriction_uuid}, user_id={user_uuid}, "
+                                           f"description={description}, page={page}, comment={page_comment}, location_file={rel_path}, workstatus_id={workstatus_uuid}, order_by={this_order}")
+                                detail += f"\nTraceback: {traceback.format_exc()}"
+                            raise HTTPException(status_code=400, detail=detail)
+                        # Ensure current_file is set to current_rel_path if OCR disabled
+                        if getattr(config, "OCR_PIPELINE_ENABLED", True) is False:
+                            new_page.current_file = current_rel_path
+                            db.flush()
+                        new_pages.append(new_page)
+                    except HTTPException:
+                        raise
+                    except Exception as e:
+                        import traceback
+                        env = getattr(config, "ENVIRONMENT", "production")
+                        detail = f"Fehler beim Splitten und Einfügen der Page (Seite {i+1}): {str(e)}"
+                        if env == "development":
+                            detail += f"\nTraceback: {traceback.format_exc()}"
+                        raise HTTPException(status_code=400, detail=detail)
                 db.commit()
                 # OCR-Job für jede neue Seite erst nach Commit starten
                 for new_page in new_pages:
