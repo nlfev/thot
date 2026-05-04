@@ -1,7 +1,3 @@
-
-
-
-
 """
 Pages API routes
 """
@@ -34,43 +30,11 @@ from app.services import pdf_ocr_service as pdf_ocr_module
 from app.utils.auth import get_current_user
 from config import config
 
+from app.services.page_service import PageService
+from pypdf import PdfWriter
+from app.routes import pages as pages_routes
+import shutil
 
-router = APIRouter(prefix="/pages", tags=["pages"])
-logger = logging.getLogger(__name__)
-
-# Start OCR job for a page
-@router.post("/{page_id}/start-ocr")
-async def start_ocr_job(
-    page_id: str,
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user = Depends(get_current_user),
-):
-    """Start OCR job for a page (admin or user_scan only, CSRF required)."""
-    # CSRF check
-    csrf_cookie = request.cookies.get("csrf_token")
-    csrf_header = request.headers.get(CSRF_HEADER_NAME)
-    if not csrf_cookie or not csrf_header or csrf_cookie != csrf_header:
-        raise HTTPException(status_code=403, detail="CSRF token missing or invalid")
-    # Role check
-    if not (current_user.has_role("admin") or current_user.has_role("user_scan")):
-        raise HTTPException(status_code=403, detail="Not authorized to start OCR job")
-    # Parse UUID
-    try:
-        page_uuid = uuid.UUID(page_id) if not isinstance(page_id, uuid.UUID) else page_id
-    except Exception:
-        raise HTTPException(status_code=404, detail="Page not found")
-    page = db.query(Page).filter(Page.id == page_uuid, Page.active == True).first()
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-    if not page.orgin_file:
-        raise HTTPException(status_code=400, detail="No origin file for this page")
-    try:
-        PageOcrJobService.schedule_page_ocr(page_id=str(page.id), record_id=str(page.record_id) if page.record_id else None)
-    except Exception as exc:
-        logger.exception("Failed to start OCR job")
-        raise HTTPException(status_code=500, detail=f"Failed to start OCR job: {str(exc)}")
-    return {"message": "OCR job started"}
 
 
 router = APIRouter(prefix="/pages", tags=["pages"])
@@ -155,26 +119,6 @@ async def get_pdf(
             "Cache-Control": "no-store",
         },
     )
-
-    import uuid
-    try:
-        page_uuid = uuid.UUID(page_id) if not isinstance(page_id, uuid.UUID) else page_id
-    except Exception:
-        raise HTTPException(status_code=404, detail="Page not found")
-
-    page = db.query(Page).filter(Page.id == page_uuid, Page.active == True).first()
-    if not page:
-        raise HTTPException(status_code=404, detail="Page not found")
-    if not page.orgin_file:
-        raise HTTPException(status_code=400, detail="No origin file for this page")
-
-    try:
-        PageOcrJobService.schedule_page_ocr(page_id=str(page.id), record_id=str(page.record_id) if page.record_id else None)
-    except Exception as exc:
-        logger.exception("Failed to start OCR job")
-        raise HTTPException(status_code=500, detail=f"Failed to start OCR job: {str(exc)}")
-
-    return {"message": "OCR job started"}
 
 ALLOWED_PDF_CONTENT_TYPES = {
     "application/pdf",
@@ -1193,6 +1137,7 @@ async def create_page(
     record = db.query(Record).filter(Record.id == record_uuid).first()
     if record:
         record_signature = record.signature
+    logging.info("Create Page 1")
     if file:
         validate_file(file)
         pdf_bytes = file.file.read()
@@ -1202,10 +1147,11 @@ async def create_page(
             if reader.is_encrypted:
                 raise HTTPException(status_code=400, detail="Invalid PDF file: Encrypted PDF files are not supported")
             num_pages = len(reader.pages)
-            from app.services.page_service import PageService
-            from pypdf import PdfWriter
-            from app.routes import pages as pages_routes
-            import shutil
+            # from app.services.page_service import PageService
+            # from pypdf import PdfWriter
+            # from app.routes import pages as pages_routes
+            # import shutil
+            logging.info("Create Page 2")
             if num_pages > 1:
                 split_pdf = True
                 created_count = num_pages
@@ -1214,6 +1160,7 @@ async def create_page(
                 start_order = (max_order[0] if max_order and max_order[0] is not None else 0) + 1
                 new_pages = []
                 for i in range(num_pages):
+                    logging.info("Create Page 3 - Seite %d", i+1)
                     try:
                         writer = PdfWriter()
                         writer.add_page(reader.pages[i])
@@ -1235,6 +1182,7 @@ async def create_page(
                         # Kommentar für jede Seite bestimmen
                         text = reader.pages[i].extract_text() or ""
                         page_number = None
+                        logging.info("Create Page 4 - Extracting page number for Seite %d", i+1)
                         if hasattr(pages_routes, "_extract_page_number_from_pdf_text"):
                             page_number = pages_routes._extract_page_number_from_pdf_text(text)
                         if page_number is not None:
@@ -1283,6 +1231,7 @@ async def create_page(
                         if env == "development":
                             detail += f"\nTraceback: {traceback.format_exc()}"
                         raise HTTPException(status_code=400, detail=detail)
+                logging.info("Create Page 4")
                 db.commit()
                 # OCR-Job für jede neue Seite erst nach Commit starten
                 for new_page in new_pages:
@@ -1340,11 +1289,9 @@ async def create_page(
         except Exception as exc:
             raise HTTPException(status_code=400, detail=f"Invalid PDF file: {str(exc)}")
 
-    from app.services.page_service import PageService
     # Kommentar immer automatisch setzen, wenn PDF vorhanden
     final_comment = comment
     if file and pdf_bytes is not None:
-        from app.routes import pages as pages_routes
         text = ""
         try:
             reader = PdfReader(BytesIO(pdf_bytes))
