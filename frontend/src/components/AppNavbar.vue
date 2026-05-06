@@ -28,10 +28,10 @@
 
       <!-- Objekte Section (sichtbar für alle, aber Unterpunkte je nach Zustand) -->
       <li v-if="authStore.isAuthenticated || showObjektlisteDefault" class="nav-section">
-        <span class="nav-label">Objekte</span>
+        <span class="nav-label">{{ t('nav.records') }}</span>
         <ul>
           <li v-if="authStore.isAuthenticated"><router-link to="/records" @click="closeMenu">{{ t('nav.recordList') }}</router-link></li>
-          <li v-if="showObjektlisteDefault"><router-link to="/records-default" @click="closeMenu">Objektliste Default</router-link></li>
+          <li v-if="showObjektlisteDefault"><router-link to="/records-default" @click="closeMenu">{{ t('nav.objectListDefault') }}</router-link></li>
           <li v-if="authStore.isAuthenticated && (authStore.hasRole('admin') || authStore.hasRole('user_bibl'))">
             <router-link to="/records/new" @click="closeMenu">{{ t('nav.createRecord') }}</router-link>
           </li>
@@ -58,6 +58,12 @@
             <router-link to="/auth/register" @click="closeMenu">{{ t('nav.register') }}</router-link>
           </li>
           <li v-if="authStore.hasRole('admin')">
+            <router-link to="/notifications/create" @click="closeMenu">{{ t('nav.createNotification') }}</router-link>
+          </li>
+          <li>
+            <router-link to="/notifications" @click="closeMenu">{{ t('nav.notifications') }}</router-link>
+          </li>
+          <li>
             <router-link to="/admin/roles" @click="closeMenu">{{ t('nav.roles') }}</router-link>
           </li>
           <li v-if="authStore.hasRole('admin')">
