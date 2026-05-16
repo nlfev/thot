@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import PageForm from '@/views/records/PageForm.vue'
 import { useAuthStore } from '@/stores/auth'
+import { pageService } from '@/services/page'
 
 vi.mock('@/services/record', () => ({
   recordService: {
@@ -14,6 +15,13 @@ vi.mock('@/services/record', () => ({
 
 vi.mock('@/services/page', () => ({
   pageService: {
+    listPages: vi.fn().mockResolvedValue({
+      items: [
+        { id: 'p-1', name: 'Test Page' },
+        { id: 'p-2', name: 'Second Page' },
+      ],
+      total: 2,
+    }),
     getPage: vi.fn().mockResolvedValue({
       name: 'Test Page',
       description: '',
@@ -22,9 +30,13 @@ vi.mock('@/services/page', () => ({
       restriction_id: 'r1',
       workstatus_id: null,
       location_file: 'some/file.pdf',
+      ocr_status: 'completed',
     }),
     createPage: vi.fn().mockResolvedValue({}),
     updatePage: vi.fn().mockResolvedValue({}),
+    getThumbnail: vi.fn().mockResolvedValue(new Blob(['thumbnail'], { type: 'image/png' })),
+    getViewPdf: vi.fn().mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' })),
+    getRestrictionViewPdf: vi.fn().mockResolvedValue(new Blob(['pdf'], { type: 'application/pdf' })),
   },
 }))
 
@@ -42,6 +54,7 @@ const messages = {
     pages: {
       createPage: 'Create Page',
       editPage: 'Edit Page',
+      rotation: 'Rotation',
       pageName: 'Name',
       pageNamePlaceholder: 'Enter name',
       description: 'Description',
@@ -50,6 +63,9 @@ const messages = {
       commentPlaceholder: 'Enter comment',
       pageContent: 'Content',
       pageContentPlaceholder: 'Enter content',
+      orderBy: 'Sort Order',
+      orderByPlaceholder: 'Sort order',
+      orderByHelp: 'Lower values are shown first.',
       restriction: 'Restriction',
       selectRestriction: 'Select restriction...',
       workstatus: 'Work Status',
@@ -57,13 +73,36 @@ const messages = {
       uploadFile: 'Upload PDF File',
       uploadMultiPageHint: 'Multi-page PDFs will be split into individual page entries automatically.',
       uploadSinglePageOnly: 'Only single-page PDFs are allowed when replacing a file on an existing page.',
+      restrictionUploadSinglePageOnly: 'Restriction files must always be uploaded as a single-page PDF.',
       uploadSinglePageError: 'The selected PDF has multiple pages. Please upload a single-page PDF.',
+      ocrPending: 'OCR processing is still running for this page.',
+      restrictionRotation: 'Restriction rotation',
+      previousPage: 'Previous page',
+      nextPage: 'Next page',
+      pageNavigationPosition: 'Page {current} of {total}',
+      unsavedChangesTitle: 'Unsaved changes',
+      unsavedChangesMessage: 'There are unsaved changes on this page. Do you want to save them before leaving edit mode?',
+      saveAndContinue: 'Save and continue',
+      discardChanges: 'Discard changes',
       noFileSelected: 'No file selected',
+      noRestrictionFileSelected: 'No restriction file selected',
+      noThumbnail: 'No thumbnail',
+      pdfThumbnail: 'PDF thumbnail',
       currentFile: 'Current file',
       removeCurrentFile: 'Remove current file',
+      restrictionFile: 'Restriction file',
+      removeRestrictionFile: 'Remove restriction file',
+      uploadRestrictionFile: 'Upload restriction PDF',
+      restrictionPdfDocument: 'Restriction PDF',
+      currentPdfDocument: 'Current PDF',
+      downloadCurrentPdf: 'Download current PDF',
+      downloadRestrictionPdf: 'Download restriction PDF',
       loadError: 'Failed to load page',
       metadataLoadError: 'Failed to load metadata',
       saveError: 'Failed to save page',
+    },
+    records: {
+      title: 'Record',
     },
     messages: {
       unauthorised: 'Unauthorised',
@@ -109,19 +148,29 @@ function mountPageForm({ isEditMode = false, roles = ['admin'] } = {}) {
   const routeParams = isEditMode
     ? { recordId: 'rec-1', pageId: 'p-1' }
     : { recordId: 'rec-1' }
+  const routeQuery = {
+    page: '3',
+    pageSize: '25',
+    search: 'alpha',
+  }
 
-  return mount(PageForm, {
+  const routerPush = vi.fn()
+
+  const wrapper = mount(PageForm, {
     global: {
       plugins: [i18n, pinia],
       mocks: {
-        $route: { params: routeParams },
-        $router: { push: vi.fn() },
+        $route: { params: routeParams, query: routeQuery },
+        $router: { push: routerPush },
       },
       stubs: {
         RouterLink: { template: '<a><slot /></a>' },
+        PdfJsPageViewer: { template: '<div class="pdfjs-page-viewer-stub" />' },
       },
     },
   })
+
+  return { wrapper, routerPush }
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -129,10 +178,12 @@ function mountPageForm({ isEditMode = false, roles = ['admin'] } = {}) {
 describe('PageForm – file upload hints', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    global.URL.createObjectURL = vi.fn(() => 'blob:thumbnail')
+    global.URL.revokeObjectURL = vi.fn()
   })
 
   it('shows multi-page hint in create mode', async () => {
-    const wrapper = mountPageForm({ isEditMode: false })
+    const { wrapper } = mountPageForm({ isEditMode: false })
     await flushPromises()
     expect(wrapper.text()).toContain(
       'Multi-page PDFs will be split into individual page entries automatically.',
@@ -140,7 +191,7 @@ describe('PageForm – file upload hints', () => {
   })
 
   it('does not show single-page-only note in create mode', async () => {
-    const wrapper = mountPageForm({ isEditMode: false })
+    const { wrapper } = mountPageForm({ isEditMode: false })
     await flushPromises()
     expect(wrapper.text()).not.toContain(
       'Only single-page PDFs are allowed when replacing a file on an existing page.',
@@ -148,7 +199,7 @@ describe('PageForm – file upload hints', () => {
   })
 
   it('shows single-page-only note in edit mode', async () => {
-    const wrapper = mountPageForm({ isEditMode: true })
+    const { wrapper } = mountPageForm({ isEditMode: true })
     await flushPromises()
     expect(wrapper.text()).toContain(
       'Only single-page PDFs are allowed when replacing a file on an existing page.',
@@ -156,7 +207,7 @@ describe('PageForm – file upload hints', () => {
   })
 
   it('does not show multi-page hint in edit mode', async () => {
-    const wrapper = mountPageForm({ isEditMode: true })
+    const { wrapper } = mountPageForm({ isEditMode: true })
     await flushPromises()
     expect(wrapper.text()).not.toContain(
       'Multi-page PDFs will be split into individual page entries automatically.',
@@ -167,10 +218,12 @@ describe('PageForm – file upload hints', () => {
 describe('PageForm – file page count validation in edit mode', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    global.URL.createObjectURL = vi.fn(() => 'blob:thumbnail')
+    global.URL.revokeObjectURL = vi.fn()
   })
 
   it('shows error and clears file when multi-page PDF selected in edit mode', async () => {
-    const wrapper = mountPageForm({ isEditMode: true })
+    const { wrapper } = mountPageForm({ isEditMode: true })
     await flushPromises()
 
     const multiPageFile = makeMockFile('multi.pdf', 3)
@@ -206,7 +259,7 @@ describe('PageForm – file page count validation in edit mode', () => {
   })
 
   it('clears error and accepts single-page PDF in edit mode', async () => {
-    const wrapper = mountPageForm({ isEditMode: true })
+    const { wrapper } = mountPageForm({ isEditMode: true })
     await flushPromises()
 
     const singlePageFile = makeMockFile('single.pdf', 1)
@@ -237,7 +290,7 @@ describe('PageForm – file page count validation in edit mode', () => {
   })
 
   it('does not validate page count in create mode for multi-page PDF', async () => {
-    const wrapper = mountPageForm({ isEditMode: false })
+    const { wrapper } = mountPageForm({ isEditMode: false })
     await flushPromises()
 
     const multiPageFile = makeMockFile('multi.pdf', 3)
@@ -263,5 +316,224 @@ describe('PageForm – file page count validation in edit mode', () => {
     expect(readSpy).not.toHaveBeenCalled()
     expect(wrapper.vm.filePageError).toBeNull()
     expect(wrapper.vm.selectedFile).toBeTruthy()
+  })
+})
+
+describe('PageForm – OCR status visibility', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    global.URL.createObjectURL = vi.fn(() => 'blob:thumbnail')
+    global.URL.revokeObjectURL = vi.fn()
+  })
+
+  it('shows a pending OCR warning in edit mode when the backend reports pending status', async () => {
+    pageService.getPage.mockResolvedValueOnce({
+      name: 'Pending OCR Page',
+      description: '',
+      page: '',
+      comment: '',
+      restriction_id: 'r1',
+      workstatus_id: null,
+      location_file: 'some/file.pdf',
+      current_file: null,
+      ocr_status: 'pending',
+    })
+
+    const { wrapper } = mountPageForm({ isEditMode: true })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('OCR processing is still running for this page.')
+  })
+})
+
+describe('PageForm – restriction file controls', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    global.URL.createObjectURL = vi.fn(() => 'blob:preview')
+    global.URL.revokeObjectURL = vi.fn()
+  })
+
+  it('rotates and deletes an existing restriction file before submit', async () => {
+    pageService.getPage.mockResolvedValueOnce({
+      name: 'Restricted Page',
+      description: '',
+      page: '',
+      comment: '',
+      restriction_id: 'r1',
+      workstatus_id: null,
+      location_file: 'some/file.pdf',
+      current_file: 'some/current.pdf',
+      restriction_file: 'some/restriction.pdf',
+      rotation: 0,
+      rotation_restriction: 90,
+      record_title: 'Record Title',
+      record_signature: 'REC-1',
+      order_by: 1,
+    })
+
+    const { wrapper } = mountPageForm({ isEditMode: true })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Remove restriction file')
+    expect(wrapper.text()).toContain('Restriction rotation: 90°')
+
+    const restrictionRotationButtons = wrapper.findAll('.restriction-rotation-group button')
+    await restrictionRotationButtons[1].trigger('click')
+
+    const restrictionDeleteLabel = wrapper
+      .findAll('label.checkbox-label')
+      .find((label) => label.text().includes('Remove restriction file'))
+
+    await restrictionDeleteLabel.find('input').setValue(true)
+    await wrapper.find('form.page-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(pageService.updatePage).toHaveBeenCalledWith(
+      'p-1',
+      expect.objectContaining({
+        rotation_restriction: 180,
+        delete_restriction_file: true,
+      }),
+    )
+  })
+})
+
+describe('PageForm – edit navigation and unsaved changes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    global.URL.createObjectURL = vi.fn(() => 'blob:thumbnail')
+    global.URL.revokeObjectURL = vi.fn()
+  })
+
+  it('renders previous/next navigation both above and below the form in edit mode', async () => {
+    const { wrapper } = mountPageForm({ isEditMode: true })
+    await flushPromises()
+
+    const previousButtons = wrapper.findAll('button').filter((button) => button.text() === 'Previous page')
+    const nextButtons = wrapper.findAll('button').filter((button) => button.text() === 'Next page')
+
+    expect(previousButtons).toHaveLength(2)
+    expect(nextButtons).toHaveLength(2)
+    expect(wrapper.text()).toContain('Page 1 of 2')
+  })
+
+  it('navigates to the next page immediately when there are no unsaved changes', async () => {
+    const { wrapper, routerPush } = mountPageForm({ isEditMode: true })
+    await flushPromises()
+
+    await wrapper.vm.navigateToAdjacentPage(1)
+
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/records/rec-1/pages/p-2/edit',
+      query: {
+        page: '3',
+        pageSize: '25',
+        search: 'alpha',
+      },
+    })
+    expect(wrapper.vm.showUnsavedChangesDialog).toBe(false)
+  })
+
+  it('stays on the edit page and reloads data on a normal save', async () => {
+    const { wrapper, routerPush } = mountPageForm({ isEditMode: true })
+    await flushPromises()
+
+    const getPageCallsBeforeSave = pageService.getPage.mock.calls.length
+    const listPagesCallsBeforeSave = pageService.listPages.mock.calls.length
+
+    await wrapper.find('#name').setValue('Changed Page Name')
+    await wrapper.find('form.page-form').trigger('submit.prevent')
+    await flushPromises()
+
+    expect(pageService.updatePage).toHaveBeenCalledWith(
+      'p-1',
+      expect.objectContaining({
+        name: 'Changed Page Name',
+      }),
+    )
+    expect(pageService.getPage.mock.calls.length).toBeGreaterThan(getPageCallsBeforeSave)
+    expect(pageService.listPages.mock.calls.length).toBeGreaterThan(listPagesCallsBeforeSave)
+    expect(routerPush).not.toHaveBeenCalled()
+  })
+
+  it('prompts for save or discard before switching pages when the form is dirty', async () => {
+    const { wrapper, routerPush } = mountPageForm({ isEditMode: true })
+    await flushPromises()
+
+    await wrapper.find('#name').setValue('Changed Page Name')
+    await wrapper.vm.navigateToAdjacentPage(1)
+
+    expect(routerPush).not.toHaveBeenCalled()
+    expect(wrapper.vm.showUnsavedChangesDialog).toBe(true)
+    expect(wrapper.vm.pendingNavigationTarget).toEqual({
+      path: '/records/rec-1/pages/p-2/edit',
+      query: {
+        page: '3',
+        pageSize: '25',
+        search: 'alpha',
+      },
+    })
+    expect(wrapper.text()).toContain('There are unsaved changes on this page. Do you want to save them before leaving edit mode?')
+  })
+
+  it('saves and continues when the user confirms the unsaved changes dialog', async () => {
+    const { wrapper, routerPush } = mountPageForm({ isEditMode: true })
+    await flushPromises()
+
+    await wrapper.find('#name').setValue('Changed Page Name')
+    await wrapper.vm.navigateToAdjacentPage(1)
+    await wrapper.vm.saveAndContinueNavigation()
+
+    expect(pageService.updatePage).toHaveBeenCalledTimes(1)
+    expect(pageService.updatePage).toHaveBeenCalledWith(
+      'p-1',
+      expect.objectContaining({
+        name: 'Changed Page Name',
+      }),
+    )
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/records/rec-1/pages/p-2/edit',
+      query: {
+        page: '3',
+        pageSize: '25',
+        search: 'alpha',
+      },
+    })
+    expect(wrapper.vm.showUnsavedChangesDialog).toBe(false)
+  })
+
+  it('discards changes and continues when requested', async () => {
+    const { wrapper, routerPush } = mountPageForm({ isEditMode: true })
+    await flushPromises()
+
+    await wrapper.find('#name').setValue('Changed Page Name')
+    await wrapper.vm.navigateToAdjacentPage(1)
+    await wrapper.vm.discardPendingNavigation()
+    await flushPromises()
+
+    expect(pageService.updatePage).not.toHaveBeenCalled()
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/records/rec-1/pages/p-2/edit',
+      query: {
+        page: '3',
+        pageSize: '25',
+        search: 'alpha',
+      },
+    })
+    expect(wrapper.vm.showUnsavedChangesDialog).toBe(false)
+  })
+
+  it('builds the close target from the incoming page list query', async () => {
+    const { wrapper } = mountPageForm({ isEditMode: true })
+    await flushPromises()
+
+    expect(wrapper.vm.pageListRoute).toEqual({
+      path: '/records/rec-1/pages',
+      query: {
+        page: '3',
+        pageSize: '25',
+        search: 'alpha',
+      },
+    })
   })
 })

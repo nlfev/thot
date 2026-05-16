@@ -5,7 +5,7 @@
       <div class="header-actions">
         <router-link
           v-if="canEditPage || canManageFile"
-          :to="`/records/${recordId}/pages/${pageId}/edit`"
+          :to="pageEditRoute"
           class="btn btn-primary"
         >
           {{ canEditPage ? $t('common.edit') : $t('pages.uploadFile') }}
@@ -132,11 +132,14 @@
           <div class="pdf-thumbnail-section">
             <h3>{{ $t('pages.thumbnail') }}</h3>
             <div class="thumbnail-container">
-              <iframe
+              <img
+                v-if="pdfThumbnailUrl"
                 :src="pdfThumbnailUrl"
+                :style="rotationStyle"
                 class="pdf-thumbnail"
-                :title="$t('pages.pdfThumbnail')"
+                :alt="$t('pages.pdfThumbnail')"
               />
+              <span v-else>{{ $t('pages.noThumbnail') }}</span>
               <div class="thumbnail-overlay">
                 <a
                   :href="pdfViewerUrl"
@@ -146,6 +149,9 @@
                   {{ $t('pages.openInNewTab') }}
                 </a>
               </div>
+            </div>
+            <div class="rotation-indicator" v-if="page && typeof page.rotation === 'number'">
+              {{ $t('pages.rotation') }}: {{ page.rotation }}°
             </div>
           </div>
 
@@ -169,11 +175,15 @@
               </a>
             </div>
             <div class="pdf-viewer-container">
-              <iframe
-                :src="pdfViewerUrl"
-                class="pdf-viewer"
-                :title="page.name"
+              <PdfJsPageViewer
+                v-if="pdfBlobUrl"
+                :src="pdfBlobUrl"
+                :rotation="page?.rotation || 0"
+                style="width:100%;max-width:900px;margin:auto;"
               />
+              <div v-else class="no-pdf">
+                <p>{{ $t('pages.noPdfAvailable') }}</p>
+              </div>
             </div>
           </div>
         </div>
@@ -185,14 +195,16 @@
 <script>
 import { pageService } from '@/services/page'
 import { useAuthStore } from '@/stores/auth'
+import PdfJsPageViewer from '@/components/PdfJsPageViewer.vue'
 
 export default {
   name: 'PageViewer',
-    setup() {
-      return {
-        authStore: useAuthStore(),
-      }
-    },
+  components: { PdfJsPageViewer },
+  setup() {
+    return {
+      authStore: useAuthStore(),
+    }
+  },
   data() {
     return {
       page: null,
@@ -209,11 +221,42 @@ export default {
     pageId() {
       return this.$route.params.pageId
     },
+    pageListQuery() {
+      const query = {}
+      const routeQuery = this.$route.query || {}
+
+      if (typeof routeQuery.page === 'string' && routeQuery.page) {
+        query.page = routeQuery.page
+      }
+
+      if (typeof routeQuery.pageSize === 'string' && routeQuery.pageSize) {
+        query.pageSize = routeQuery.pageSize
+      }
+
+      if (typeof routeQuery.search === 'string' && routeQuery.search) {
+        query.search = routeQuery.search
+      }
+
+      return query
+    },
+    pageEditRoute() {
+      return {
+        path: `/records/${this.recordId}/pages/${this.pageId}/edit`,
+        query: this.pageListQuery,
+      }
+    },
     pdfThumbnailUrl() {
       return this.thumbnailBlobUrl
     },
     pdfViewerUrl() {
       return this.pdfBlobUrl
+    },
+    rotationStyle() {
+      const rotation = this.page?.rotation
+      if (typeof rotation !== 'number' || rotation === 0) {
+        return ''
+      }
+      return `transform: rotate(${rotation}deg);`
     },
     canEditPage() {
       return this.authStore.hasRole('admin') || this.authStore.hasRole('user_page')
@@ -228,7 +271,10 @@ export default {
     },
     backToListUrl() {
       if (this.canManagePages) {
-        return `/records/${this.recordId}/pages`
+        return {
+          path: `/records/${this.recordId}/pages`,
+          query: this.pageListQuery,
+        }
       }
       return `/records/${this.recordId}/pages-gallery`
     },

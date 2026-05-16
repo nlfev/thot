@@ -319,6 +319,8 @@ class PageBase(BaseModel):
     comment: Optional[str] = Field(None)
     record_id: UUID
     restriction_id: UUID
+    rotation: int = Field(0, description="Rotation in degrees (0, 90, 180, 270)")
+    rotation_restriction: int = Field(0, description="Restriction PDF rotation in degrees (0, 90, 180, 270)")
 
 
 class PageCreate(BaseModel):
@@ -330,6 +332,8 @@ class PageCreate(BaseModel):
     comment: Optional[str] = Field(None)
     record_id: UUID
     restriction_id: UUID
+    rotation: int = Field(0, description="Rotation in degrees (0, 90, 180, 270)")
+    rotation_restriction: int = Field(0, description="Restriction PDF rotation in degrees (0, 90, 180, 270)")
 
 
 class PageUpdate(BaseModel):
@@ -340,6 +344,8 @@ class PageUpdate(BaseModel):
     page: Optional[str] = Field(None, description="Page text content")
     comment: Optional[str] = Field(None)
     restriction_id: Optional[UUID] = None
+    rotation: Optional[int] = Field(None, description="Rotation in degrees (0, 90, 180, 270)")
+    rotation_restriction: Optional[int] = Field(None, description="Restriction PDF rotation in degrees (0, 90, 180, 270)")
 
 
 class PageResponse(PageBase):
@@ -358,6 +364,8 @@ class PageResponse(PageBase):
     created_by: Optional[UUID]
     last_modified_on: Optional[datetime]
     last_modified_by: Optional[UUID]
+    rotation: int
+    rotation_restriction: int
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -372,6 +380,8 @@ class PageListResponse(BaseModel):
     comment: Optional[str]
     restriction_id: UUID
     created_on: datetime
+    rotation: int
+    rotation_restriction: int
 
 
 class PageListDetailResponse(PageListResponse):

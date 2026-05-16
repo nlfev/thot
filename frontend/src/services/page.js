@@ -1,4 +1,4 @@
-import api from './api'
+import api from './api.js'
 
 export const pageService = {
   /**
@@ -53,6 +53,8 @@ export const pageService = {
       if (data.comment) formData.append('comment', data.comment)
       if (data.workstatus_id) formData.append('workstatus_id', data.workstatus_id)
       if (data.order_by !== undefined && data.order_by !== null) formData.append('order_by', data.order_by)
+      if (data.rotation !== undefined) formData.append('rotation', data.rotation)
+      if (data.rotation_restriction !== undefined) formData.append('rotation_restriction', data.rotation_restriction)
 
       // Add file if provided
       if (data.file) {
@@ -86,11 +88,17 @@ export const pageService = {
       if (data.comment) formData.append('comment', data.comment)
       if (data.workstatus_id) formData.append('workstatus_id', data.workstatus_id)
       if (data.order_by !== undefined && data.order_by !== null) formData.append('order_by', data.order_by)
+      if (data.rotation !== undefined) formData.append('rotation', data.rotation)
+      if (data.rotation_restriction !== undefined) formData.append('rotation_restriction', data.rotation_restriction)
       if (data.delete_file !== undefined) formData.append('delete_file', data.delete_file)
+      if (data.delete_restriction_file !== undefined) formData.append('delete_restriction_file', data.delete_restriction_file)
 
       // Add file if provided
       if (data.file) {
         formData.append('file', data.file)
+      }
+      if (data.restriction_file) {
+        formData.append('restriction_file', data.restriction_file)
       }
 
       const response = await api.put(`/pages/${pageId}`, formData, {
@@ -150,10 +158,41 @@ export const pageService = {
   /**
    * Get thumbnail with watermark (returns blob)
    */
-  async getThumbnail(pageId, width = 200) {
+  async getThumbnail(pageId, width = 200, preferRestriction = false) {
     try {
       const response = await api.get(`/pages/${pageId}/thumbnail`, {
-        params: { width },
+        params: { width, prefer_restriction: preferRestriction },
+        responseType: 'blob',
+      })
+      return response.data
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Download a watermarked restriction PDF for a page.
+   */
+  async downloadRestrictionPdf(pageId) {
+    try {
+      const response = await api.get(`/pages/${pageId}/download-restriction-pdf`, {
+        responseType: 'blob',
+      })
+      return {
+        blob: response.data,
+        contentDisposition: response.headers['content-disposition'] || '',
+      }
+    } catch (error) {
+      throw error.response?.data || error
+    }
+  },
+
+  /**
+   * Get watermarked restriction PDF for viewing (returns blob)
+   */
+  async getRestrictionViewPdf(pageId) {
+    try {
+      const response = await api.get(`/pages/${pageId}/view-restriction-pdf`, {
         responseType: 'blob',
       })
       return response.data
