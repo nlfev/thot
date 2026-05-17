@@ -65,6 +65,18 @@ function translate(key, params = {}) {
     return `Please enter a position between 1 and ${params.total}.`
   }
 
+  if (key === 'pages.invalidPageNumber') {
+    return `Please enter a page number between 1 and ${params.total}.`
+  }
+
+  if (key === 'pages.pageSelectionPrefix') {
+    return 'Page'
+  }
+
+  if (key === 'pages.pageSelectionOfTotal') {
+    return `of ${params.total}`
+  }
+
   return key
 }
 
@@ -212,5 +224,33 @@ describe('PageList.vue', () => {
       path: '/records/record-1/pages/page-1/edit',
       ...expectedRoute,
     })
+  })
+
+  it('supports first, last, and direct page navigation', async () => {
+    const wrapper = await mountPageList(['admin'], [createPage('page-1', 1)], 100)
+
+    wrapper.vm.currentPage = 5
+    await flushPromises()
+
+    expect(wrapper.findAll('.pagination')).toHaveLength(2)
+    expect(wrapper.find('#page-jump-input-top').exists()).toBe(true)
+    expect(wrapper.find('#page-jump-input-bottom').exists()).toBe(true)
+    expect(wrapper.find('.pagination-top .pagination-jump').text()).toContain('Page')
+    expect(wrapper.find('.pagination-top .pagination-jump').text()).toContain('of 10')
+
+    wrapper.vm.goToFirstPage()
+    expect(wrapper.vm.currentPage).toBe(1)
+
+    wrapper.vm.goToLastPage()
+    expect(wrapper.vm.currentPage).toBe(10)
+
+    wrapper.vm.currentPageInput = '7'
+    wrapper.vm.goToEnteredPage()
+    expect(wrapper.vm.currentPage).toBe(7)
+
+    wrapper.vm.currentPageInput = '99'
+    wrapper.vm.goToEnteredPage()
+    expect(wrapper.vm.currentPage).toBe(7)
+    expect(wrapper.vm.error).toBe('Please enter a page number between 1 and 10.')
   })
 })

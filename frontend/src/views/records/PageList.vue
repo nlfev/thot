@@ -74,6 +74,63 @@
 
     <!-- Pages List -->
     <div v-if="!loading && pages.length > 0" class="pages-list">
+      <div v-if="totalPages > 1" class="pagination pagination-top">
+        <button
+          :disabled="currentPage === 1"
+          class="btn btn-sm"
+          @click="goToFirstPage"
+        >
+          {{ $t('pages.firstPageAction') }}
+        </button>
+        <button
+          :disabled="currentPage === 1"
+          class="btn btn-sm"
+          @click="currentPage--"
+        >
+          {{ $t('common.previous') }}
+        </button>
+        <div class="pagination-status">
+          <div class="pagination-jump">
+            <span class="pagination-info">
+              {{ $t('pages.pageSelectionPrefix') }}
+            </span>
+            <input
+              :id="getPaginationJumpInputId('top')"
+              v-model="currentPageInput"
+              type="number"
+              min="1"
+              :max="totalPages"
+              class="form-control pagination-jump-input"
+              :aria-label="$t('pages.goToPageLabel')"
+              @keyup.enter="goToEnteredPage"
+            />
+            <span class="pagination-info">
+              {{ $t('pages.pageSelectionOfTotal', { total: totalPages }) }}
+            </span>
+            <button
+              class="btn btn-sm btn-secondary"
+              @click="goToEnteredPage"
+            >
+              {{ $t('pages.goToPageAction') }}
+            </button>
+          </div>
+        </div>
+        <button
+          :disabled="currentPage === totalPages"
+          class="btn btn-sm"
+          @click="currentPage++"
+        >
+          {{ $t('common.next') }}
+        </button>
+        <button
+          :disabled="currentPage === totalPages"
+          class="btn btn-sm"
+          @click="goToLastPage"
+        >
+          {{ $t('pages.lastPageAction') }}
+        </button>
+      </div>
+
       <div class="pages-grid">
         <div v-for="(page, index) in pages" :key="page.id" class="page-card">
           <div class="page-card-header">
@@ -187,7 +244,14 @@
       </div>
 
       <!-- Pagination -->
-      <div v-if="totalPages > 1" class="pagination">
+      <div v-if="totalPages > 1" class="pagination pagination-bottom">
+        <button
+          :disabled="currentPage === 1"
+          class="btn btn-sm"
+          @click="goToFirstPage"
+        >
+          {{ $t('pages.firstPageAction') }}
+        </button>
         <button
           :disabled="currentPage === 1"
           class="btn btn-sm"
@@ -195,15 +259,45 @@
         >
           {{ $t('common.previous') }}
         </button>
-        <span class="pagination-info">
-          {{ $t('pages.pagingInfo', { current: currentPage, total: totalPages }) }}
-        </span>
+        <div class="pagination-status">
+          <div class="pagination-jump">
+            <span class="pagination-info">
+              {{ $t('pages.pageSelectionPrefix') }}
+            </span>
+            <input
+              :id="getPaginationJumpInputId('bottom')"
+              v-model="currentPageInput"
+              type="number"
+              min="1"
+              :max="totalPages"
+              class="form-control pagination-jump-input"
+              :aria-label="$t('pages.goToPageLabel')"
+              @keyup.enter="goToEnteredPage"
+            />
+            <span class="pagination-info">
+              {{ $t('pages.pageSelectionOfTotal', { total: totalPages }) }}
+            </span>
+            <button
+              class="btn btn-sm btn-secondary"
+              @click="goToEnteredPage"
+            >
+              {{ $t('pages.goToPageAction') }}
+            </button>
+          </div>
+        </div>
         <button
           :disabled="currentPage === totalPages"
           class="btn btn-sm"
           @click="currentPage++"
         >
           {{ $t('common.next') }}
+        </button>
+        <button
+          :disabled="currentPage === totalPages"
+          class="btn btn-sm"
+          @click="goToLastPage"
+        >
+          {{ $t('pages.lastPageAction') }}
         </button>
       </div>
     </div>
@@ -248,6 +342,7 @@ export default {
       moveTargets: {},
       pageOrderMap: {},
       movingPageId: null,
+      currentPageInput: '1',
     }
   },
   computed: {
@@ -281,10 +376,14 @@ export default {
   },
   watch: {
     currentPage() {
+      this.currentPageInput = String(this.currentPage)
       this.loadPages()
     },
   },
   methods: {
+    getPaginationJumpInputId(position) {
+      return `page-jump-input-${position}`
+    },
     buildPageFormRoute(path) {
       return {
         path,
@@ -364,6 +463,34 @@ export default {
     handlePageSizeChange() {
       this.currentPage = 1
       this.loadPages()
+    },
+    goToFirstPage() {
+      if (this.currentPage > 1) {
+        this.currentPage = 1
+      }
+    },
+    goToLastPage() {
+      if (this.totalPages > 0 && this.currentPage < this.totalPages) {
+        this.currentPage = this.totalPages
+      }
+    },
+    goToEnteredPage() {
+      const targetPage = Number.parseInt(this.currentPageInput, 10)
+
+      if (!Number.isInteger(targetPage) || targetPage < 1 || targetPage > this.totalPages) {
+        this.error = this.$t('pages.invalidPageNumber', { total: this.totalPages })
+        this.currentPageInput = String(this.currentPage)
+        return
+      }
+
+      this.error = null
+
+      if (targetPage !== this.currentPage) {
+        this.currentPage = targetPage
+        return
+      }
+
+      this.currentPageInput = String(this.currentPage)
     },
     resetFilters() {
       this.searchName = ''
@@ -739,13 +866,38 @@ export default {
 .pagination {
   display: flex;
   justify-content: center;
-  align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
   margin-top: 2rem;
+}
+
+.pagination-status {
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .pagination-info {
   color: #666;
+  font-weight: 500;
+}
+
+.pagination-jump {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pagination-jump-input {
+  width: 5rem;
+  text-align: right;
+}
+
+.pagination-jump .btn {
+  white-space: nowrap;
 }
 
 .empty-state {
@@ -778,6 +930,11 @@ export default {
 
   .page-reorder-input {
     max-width: none;
+  }
+
+  .pagination-status,
+  .pagination-jump {
+    justify-content: center;
   }
 }
 
