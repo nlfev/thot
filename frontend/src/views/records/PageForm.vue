@@ -8,13 +8,40 @@
             type="button"
             class="btn btn-light"
             :disabled="!hasPreviousPage || submitting || loading"
+            @click="goToFirstPage"
+          >
+            {{ $t('pages.firstPageAction') }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-light"
+            :disabled="!hasPreviousPage || submitting || loading"
             @click="navigateToAdjacentPage(-1)"
           >
             {{ $t('pages.previousPage') }}
           </button>
-          <span class="page-navigation-status">
-            {{ $t('pages.pageNavigationPosition', { current: currentPagePosition, total: pageSequence.length }) }}
-          </span>
+          <div class="page-navigation-status">
+            <span class="page-navigation-info">{{ $t('pages.pageSelectionPrefix') }}</span>
+            <input
+              id="page-form-jump-input-top"
+              v-model="currentPageInput"
+              type="number"
+              min="1"
+              :max="pageSequence.length"
+              class="form-control page-navigation-input"
+              :aria-label="$t('pages.goToPageLabel')"
+              @keyup.enter="goToEnteredPage"
+            />
+            <span class="page-navigation-info">{{ $t('pages.pageSelectionOfTotal', { total: pageSequence.length }) }}</span>
+            <button
+              type="button"
+              class="btn btn-sm btn-secondary"
+              :disabled="submitting || loading"
+              @click="goToEnteredPage"
+            >
+              {{ $t('pages.goToPageAction') }}
+            </button>
+          </div>
           <button
             type="button"
             class="btn btn-light"
@@ -22,6 +49,14 @@
             @click="navigateToAdjacentPage(1)"
           >
             {{ $t('pages.nextPage') }}
+          </button>
+          <button
+            type="button"
+            class="btn btn-light"
+            :disabled="!hasNextPage || submitting || loading"
+            @click="goToLastPage"
+          >
+            {{ $t('pages.lastPageAction') }}
           </button>
         </div>
       </div>
@@ -268,13 +303,40 @@
           type="button"
           class="btn btn-light"
           :disabled="!hasPreviousPage || submitting || loading"
+          @click="goToFirstPage"
+        >
+          {{ $t('pages.firstPageAction') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-light"
+          :disabled="!hasPreviousPage || submitting || loading"
           @click="navigateToAdjacentPage(-1)"
         >
           {{ $t('pages.previousPage') }}
         </button>
-        <span class="page-navigation-status">
-          {{ $t('pages.pageNavigationPosition', { current: currentPagePosition, total: pageSequence.length }) }}
-        </span>
+        <div class="page-navigation-status">
+          <span class="page-navigation-info">{{ $t('pages.pageSelectionPrefix') }}</span>
+          <input
+            id="page-form-jump-input-bottom"
+            v-model="currentPageInput"
+            type="number"
+            min="1"
+            :max="pageSequence.length"
+            class="form-control page-navigation-input"
+            :aria-label="$t('pages.goToPageLabel')"
+            @keyup.enter="goToEnteredPage"
+          />
+          <span class="page-navigation-info">{{ $t('pages.pageSelectionOfTotal', { total: pageSequence.length }) }}</span>
+          <button
+            type="button"
+            class="btn btn-sm btn-secondary"
+            :disabled="submitting || loading"
+            @click="goToEnteredPage"
+          >
+            {{ $t('pages.goToPageAction') }}
+          </button>
+        </div>
         <button
           type="button"
           class="btn btn-light"
@@ -282,6 +344,14 @@
           @click="navigateToAdjacentPage(1)"
         >
           {{ $t('pages.nextPage') }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-light"
+          :disabled="!hasNextPage || submitting || loading"
+          @click="goToLastPage"
+        >
+          {{ $t('pages.lastPageAction') }}
         </button>
       </div>
     </form>
@@ -361,6 +431,7 @@ export default {
       pageRecordTitle: '',
       pageRecordSignature: '',
       pageSequence: [],
+      currentPageInput: '1',
       initialFormSnapshot: null,
       showUnsavedChangesDialog: false,
       pendingNavigationTarget: null,
@@ -456,6 +527,9 @@ export default {
     },
   },
   watch: {
+    currentPagePosition(newPosition) {
+      this.currentPageInput = newPosition ? String(newPosition) : '1'
+    },
     pageId(newPageId, oldPageId) {
       if (newPageId && newPageId !== oldPageId) {
         this.handleRouteContextChange()
@@ -623,6 +697,7 @@ export default {
         }
 
         this.pageSequence = orderedPages
+        this.currentPageInput = this.currentPagePosition ? String(this.currentPagePosition) : '1'
       } catch (err) {
         this.error = err.message || this.$t('pages.loadError')
       }
@@ -723,6 +798,9 @@ export default {
     },
     async navigateToAdjacentPage(offset) {
       const targetIndex = this.currentPageIndex + offset
+      await this.navigateToPageIndex(targetIndex)
+    },
+    async navigateToPageIndex(targetIndex) {
       const targetPage = this.pageSequence[targetIndex]
 
       if (!targetPage) {
@@ -739,6 +817,38 @@ export default {
       }
 
       await this.$router.push(targetPath)
+    },
+    async goToFirstPage() {
+      if (!this.hasPreviousPage) {
+        return
+      }
+
+      await this.navigateToPageIndex(0)
+    },
+    async goToLastPage() {
+      if (!this.hasNextPage) {
+        return
+      }
+
+      await this.navigateToPageIndex(this.pageSequence.length - 1)
+    },
+    async goToEnteredPage() {
+      const targetPage = Number.parseInt(this.currentPageInput, 10)
+
+      if (!Number.isInteger(targetPage) || targetPage < 1 || targetPage > this.pageSequence.length) {
+        this.error = this.$t('pages.invalidPageNumber', { total: this.pageSequence.length })
+        this.currentPageInput = this.currentPagePosition ? String(this.currentPagePosition) : '1'
+        return
+      }
+
+      this.error = null
+
+      if (targetPage === this.currentPagePosition) {
+        this.currentPageInput = String(targetPage)
+        return
+      }
+
+      await this.navigateToPageIndex(targetPage - 1)
     },
     onFileChange(event) {
       const file = event.target.files?.[0]

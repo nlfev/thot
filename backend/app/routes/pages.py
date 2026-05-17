@@ -313,6 +313,18 @@ def _parse_uuid(value: str, field_name: str) -> uuid.UUID:
         )
 
 
+def _normalize_form_identifier(value: Optional[str]) -> Optional[str]:
+    """Treat empty and null-like form values as missing identifiers."""
+    if value is None:
+        return None
+
+    normalized = str(value).strip()
+    if not normalized or normalized.lower() in {"null", "undefined"}:
+        return None
+
+    return normalized
+
+
 def delete_uploaded_file(location_file: str) -> None:
     """Delete file from disk"""
     if location_file:
@@ -1558,7 +1570,7 @@ async def update_page(
     description: Optional[str] = Form(None),
     page: Optional[str] = Form(None),
     comment: Optional[str] = Form(None),
-    restriction_id: str = Form(...),
+    restriction_id: Optional[str] = Form(None),
     workstatus_id: Optional[str] = Form(None),
     order_by: Optional[int] = Form(None),
     rotation: Optional[int] = Form(0),
@@ -1590,8 +1602,8 @@ async def update_page(
         )
 
     page_uuid = _parse_uuid(page_id, "page_id")
-    restriction_uuid = _parse_uuid(restriction_id, "restriction_id")
-    workstatus_uuid = _parse_uuid(workstatus_id, "workstatus_id") if workstatus_id else None
+    normalized_restriction_id = _normalize_form_identifier(restriction_id)
+    normalized_workstatus_id = _normalize_form_identifier(workstatus_id)
 
     # Get existing page
     existing_page = db.query(Page).filter(Page.id == page_uuid, Page.active == True).first()
@@ -1602,6 +1614,10 @@ async def update_page(
             detail="Page not found"
         )
     
+    restriction_uuid = existing_page.restriction_id
+    if normalized_restriction_id is not None:
+        restriction_uuid = _parse_uuid(normalized_restriction_id, "restriction_id")
+
     # Validate that restriction exists
     restriction = db.query(Restriction).filter(Restriction.id == restriction_uuid).first()
     if not restriction:
@@ -1609,7 +1625,9 @@ async def update_page(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Restriction not found"
         )
-    
+
+    workstatus_uuid = _parse_uuid(normalized_workstatus_id, "workstatus_id") if normalized_workstatus_id else None
+
     # Validate that workstatus exists (if provided)
     if workstatus_uuid:
         workstatus = db.query(WorkStatus).filter(WorkStatus.id == workstatus_uuid).first()

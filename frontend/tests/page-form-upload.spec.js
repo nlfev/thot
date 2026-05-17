@@ -79,6 +79,13 @@ const messages = {
       restrictionRotation: 'Restriction rotation',
       previousPage: 'Previous page',
       nextPage: 'Next page',
+      firstPageAction: 'First',
+      lastPageAction: 'Last',
+      pageSelectionPrefix: 'Page',
+      pageSelectionOfTotal: 'of {total}',
+      goToPageLabel: 'Go to page',
+      goToPageAction: 'Go',
+      invalidPageNumber: 'Please enter a page number between 1 and {total}.',
       pageNavigationPosition: 'Page {current} of {total}',
       unsavedChangesTitle: 'Unsaved changes',
       unsavedChangesMessage: 'There are unsaved changes on this page. Do you want to save them before leaving edit mode?',
@@ -405,16 +412,56 @@ describe('PageForm – edit navigation and unsaved changes', () => {
     global.URL.revokeObjectURL = vi.fn()
   })
 
-  it('renders previous/next navigation both above and below the form in edit mode', async () => {
+  it('renders extended navigation both above and below the form in edit mode', async () => {
     const { wrapper } = mountPageForm({ isEditMode: true })
     await flushPromises()
 
+    const firstButtons = wrapper.findAll('button').filter((button) => button.text() === 'First')
     const previousButtons = wrapper.findAll('button').filter((button) => button.text() === 'Previous page')
     const nextButtons = wrapper.findAll('button').filter((button) => button.text() === 'Next page')
+    const lastButtons = wrapper.findAll('button').filter((button) => button.text() === 'Last')
 
+    expect(firstButtons).toHaveLength(2)
     expect(previousButtons).toHaveLength(2)
     expect(nextButtons).toHaveLength(2)
-    expect(wrapper.text()).toContain('Page 1 of 2')
+    expect(lastButtons).toHaveLength(2)
+    expect(wrapper.find('#page-form-jump-input-top').exists()).toBe(true)
+    expect(wrapper.find('#page-form-jump-input-bottom').exists()).toBe(true)
+    expect(wrapper.find('.page-navigation-status').text()).toContain('Page')
+    expect(wrapper.find('.page-navigation-status').text()).toContain('of 2')
+  })
+
+  it('supports first, last, and direct page navigation in edit mode', async () => {
+    const { wrapper, routerPush } = mountPageForm({ isEditMode: true })
+    await flushPromises()
+
+    await wrapper.vm.goToLastPage()
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/records/rec-1/pages/p-2/edit',
+      query: {
+        page: '3',
+        pageSize: '25',
+        search: 'alpha',
+      },
+    })
+
+    routerPush.mockClear()
+    wrapper.vm.currentPageInput = '2'
+    await wrapper.vm.goToEnteredPage()
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/records/rec-1/pages/p-2/edit',
+      query: {
+        page: '3',
+        pageSize: '25',
+        search: 'alpha',
+      },
+    })
+
+    routerPush.mockClear()
+    wrapper.vm.currentPageInput = '99'
+    await wrapper.vm.goToEnteredPage()
+    expect(routerPush).not.toHaveBeenCalled()
+    expect(wrapper.vm.error).toBe('Please enter a page number between 1 and 2.')
   })
 
   it('navigates to the next page immediately when there are no unsaved changes', async () => {
