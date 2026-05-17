@@ -194,15 +194,46 @@
       <div class="pagination">
         <button
           class="btn btn-secondary"
+          @click="goToFirstPage"
+          :disabled="currentPage === 0"
+        >
+          {{ $t('records.firstPageAction') }}
+        </button>
+
+        <button
+          class="btn btn-secondary"
           @click="previousPage"
           :disabled="currentPage === 0"
         >
           {{ $t('common.previous') }}
         </button>
 
-        <span class="pagination-info">
-          {{ $t('records.pagingInfo', { current: currentPage + 1, total: totalPages }) }}
-        </span>
+        <div class="pagination-status">
+          <div class="pagination-jump">
+            <span class="pagination-info">
+              {{ $t('records.pageSelectionPrefix') }}
+            </span>
+            <input
+              id="records-page-jump-input"
+              v-model="currentPageInput"
+              type="number"
+              min="1"
+              :max="totalPages"
+              class="form-control pagination-jump-input"
+              :aria-label="$t('records.goToPageLabel')"
+              @keyup.enter="goToEnteredPage"
+            />
+            <span class="pagination-info">
+              {{ $t('records.pageSelectionOfTotal', { total: totalPages }) }}
+            </span>
+            <button
+              class="btn btn-sm btn-secondary"
+              @click="goToEnteredPage"
+            >
+              {{ $t('records.goToPageAction') }}
+            </button>
+          </div>
+        </div>
 
         <button
           class="btn btn-secondary"
@@ -210,6 +241,14 @@
           :disabled="currentPage >= totalPages - 1"
         >
           {{ $t('common.next') }}
+        </button>
+
+        <button
+          class="btn btn-secondary"
+          @click="goToLastPage"
+          :disabled="currentPage >= totalPages - 1"
+        >
+          {{ $t('records.lastPageAction') }}
         </button>
       </div>
     </div>
@@ -255,6 +294,7 @@ export default defineComponent({
       searchKeywordsNames: '',
       searchKeywordsLocations: '',
       currentPage: 0,
+      currentPageInput: '1',
       pageSize: 10,
       totalRecords: 0,
     }
@@ -344,6 +384,8 @@ export default defineComponent({
           this.records = data.items || []
           this.totalRecords = data.total || 0
         }
+
+        this.currentPageInput = String(this.currentPage + 1)
       } catch (err) {
         this.error = err.message || this.$t('records.loadError')
         console.error('Error loading records:', err)
@@ -354,11 +396,13 @@ export default defineComponent({
 
     handleSearch() {
       this.currentPage = 0
+      this.currentPageInput = '1'
       this.loadRecords()
     },
 
     handlePageSizeChange() {
       this.currentPage = 0
+      this.currentPageInput = '1'
       this.loadRecords()
     },
 
@@ -368,12 +412,22 @@ export default defineComponent({
       this.searchKeywordsNames = ''
       this.searchKeywordsLocations = ''
       this.currentPage = 0
+      this.currentPageInput = '1'
       this.loadRecords()
+    },
+
+    goToFirstPage() {
+      if (this.currentPage > 0) {
+        this.currentPage = 0
+        this.currentPageInput = '1'
+        this.loadRecords()
+      }
     },
 
     previousPage() {
       if (this.currentPage > 0) {
         this.currentPage--
+        this.currentPageInput = String(this.currentPage + 1)
         this.loadRecords()
       }
     },
@@ -381,8 +435,39 @@ export default defineComponent({
     nextPage() {
       if (this.currentPage < this.totalPages - 1) {
         this.currentPage++
+        this.currentPageInput = String(this.currentPage + 1)
         this.loadRecords()
       }
+    },
+
+    goToLastPage() {
+      const lastPageIndex = Math.max(this.totalPages - 1, 0)
+
+      if (this.currentPage < lastPageIndex) {
+        this.currentPage = lastPageIndex
+        this.currentPageInput = String(lastPageIndex + 1)
+        this.loadRecords()
+      }
+    },
+
+    goToEnteredPage() {
+      const targetPage = Number.parseInt(this.currentPageInput, 10)
+
+      if (!Number.isInteger(targetPage) || targetPage < 1 || targetPage > this.totalPages) {
+        this.error = this.$t('records.invalidPageNumber', { total: this.totalPages })
+        this.currentPageInput = String(this.currentPage + 1)
+        return
+      }
+
+      this.error = null
+
+      if (targetPage - 1 !== this.currentPage) {
+        this.currentPage = targetPage - 1
+        this.loadRecords()
+        return
+      }
+
+      this.currentPageInput = String(this.currentPage + 1)
     },
 
     async deleteRecord(recordId) {
@@ -576,11 +661,36 @@ export default defineComponent({
   gap: 15px;
   padding: 20px;
   border-top: 1px solid #eee;
+  flex-wrap: wrap;
+}
+
+.pagination-status {
+  display: flex;
+  align-items: center;
+  padding: 0.4rem 0.75rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .pagination-info {
   font-size: 14px;
   color: #666;
+}
+
+.pagination-jump {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pagination-jump-input {
+  width: 5rem;
+  text-align: right;
+}
+
+.pagination-jump .btn {
+  white-space: nowrap;
 }
 
 .empty-state {
@@ -617,6 +727,11 @@ export default defineComponent({
   
   .records-table {
     min-width: 800px;
+  }
+
+  .pagination-status,
+  .pagination-jump {
+    justify-content: center;
   }
 }
 </style>

@@ -97,5 +97,24 @@ describe('RecordList query routing', () => {
         recordsSignature: 'sig',
       },
     })
+
+    expect(wrapper.find('#records-page-jump-input').exists()).toBe(true)
+    expect(wrapper.find('.pagination-jump').text()).toContain('records.pageSelectionPrefix')
+    expect(wrapper.find('.pagination-jump').text()).toContain('records.pageSelectionOfTotal {"total":3}')
+
+    wrapper.vm.goToFirstPage()
+    expect(wrapper.vm.currentPage).toBe(0)
+
+    wrapper.vm.goToLastPage()
+    expect(wrapper.vm.currentPage).toBe(2)
+
+    wrapper.vm.currentPageInput = '2'
+    wrapper.vm.goToEnteredPage()
+    expect(wrapper.vm.currentPage).toBe(1)
+
+    wrapper.vm.currentPageInput = '99'
+    wrapper.vm.goToEnteredPage()
+    expect(wrapper.vm.currentPage).toBe(1)
+    expect(wrapper.vm.error).toBe('records.invalidPageNumber {"total":3}')
   })
 })
