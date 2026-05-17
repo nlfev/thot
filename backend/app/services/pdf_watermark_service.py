@@ -2,15 +2,25 @@
 
 from datetime import datetime
 from io import BytesIO
+import logging
 from pathlib import Path
 from typing import Optional
 
 from pypdf import PdfReader, PdfWriter
-from reportlab.lib.colors import Color
-from reportlab.lib.utils import ImageReader
-from reportlab.pdfgen import canvas
 import fitz  # PyMuPDF
 from PIL import Image, ImageDraw, ImageFont
+
+try:
+    from reportlab.lib.colors import Color
+    from reportlab.lib.utils import ImageReader
+    from reportlab.pdfgen import canvas
+except ImportError:
+    Color = None
+    ImageReader = None
+    canvas = None
+
+
+logger = logging.getLogger(__name__)
 
 
 def _fit_text(value: Optional[str], max_len: int = 110) -> str:
@@ -145,6 +155,13 @@ def create_watermarked_pdf(
     restriction_message: Optional[str] = None,
 ) -> bytes:
     """Generate a watermarked PDF and return its binary content."""
+    if canvas is None or Color is None or ImageReader is None:
+        logger.warning(
+            "PDF watermark dependencies unavailable; returning source PDF without watermark. source_pdf=%s",
+            source_pdf,
+        )
+        return source_pdf.read_bytes()
+
     reader = PdfReader(str(source_pdf))
     writer = PdfWriter()
 

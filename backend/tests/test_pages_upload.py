@@ -246,6 +246,52 @@ def test_update_page_returns_pending_ocr_status_when_processing_is_backgrounded(
     assert updated_page.current_file is None
 
 
+def test_update_page_preserves_existing_restriction_when_form_value_is_null_like(client, db, tmp_path, monkeypatch):
+    monkeypatch.setattr(config, "UPLOAD_DIRECTORY", tmp_path)
+
+    user = _create_user_with_role(db, "page_update_preserve_restriction_user", "admin")
+    record, restriction, workstatus = _create_record_fixture(db, user.id, signature="Restriction Preserve Signature")
+    headers, cookies = _auth_headers_and_csrf(user)
+    client.cookies.clear()
+    for k, v in cookies.items():
+        client.cookies.set(k, v)
+
+    create_response = client.post(
+        "/api/v1/pages",
+        headers=headers,
+        data={
+            "name": "Preserve Restriction Page",
+            "record_id": str(record.id),
+            "restriction_id": str(restriction.id),
+            "workstatus_id": str(workstatus.id),
+        },
+    )
+
+    assert create_response.status_code == 200
+    page_id = create_response.json()["id"]
+
+    update_response = client.put(
+        f"/api/v1/pages/{page_id}",
+        headers=headers,
+        data={
+            "name": "Preserve Restriction Page Updated",
+            "restriction_id": "null",
+            "workstatus_id": "",
+        },
+    )
+
+    assert update_response.status_code == 200
+    payload = update_response.json()
+    assert payload["restriction_id"] == str(restriction.id)
+    assert payload["workstatus_id"] is None
+
+    db.expire_all()
+    updated_page = db.query(Page).filter(Page.id == uuid.UUID(page_id)).first()
+    assert updated_page is not None
+    assert updated_page.restriction_id == restriction.id
+    assert updated_page.workstatus_id is None
+
+
 def test_create_page_splits_multi_page_pdf_into_multiple_pages(client, db, tmp_path, monkeypatch):
     monkeypatch.setattr(config, "UPLOAD_DIRECTORY", tmp_path)
     user = _create_user_with_role(db, "page_split_user", "admin")
