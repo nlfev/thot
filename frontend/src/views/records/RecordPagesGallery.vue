@@ -211,13 +211,6 @@ export default {
     })
     this.pdfBlob = null
   },
-  beforeUnmount() {
-    // Clean up all blob URLs
-    Object.values(this.thumbnailUrls).forEach(url => {
-      if (url) URL.revokeObjectURL(url)
-    })
-    this.pdfBlob = null
-  },
   methods: {
     pageHasDisplayPdf(page) {
       return !!(page && (page.restriction_file || page.current_file || page.location_file))
