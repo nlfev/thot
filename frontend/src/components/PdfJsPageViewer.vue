@@ -17,8 +17,8 @@
 <script>
 import { ref, watch, onMounted, nextTick } from 'vue'
 import * as pdfjsLib from 'pdfjs-dist/build/pdf'
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-// Use ESM worker for Vite compatibility
+
+const workerUrl = `${import.meta.env.BASE_URL}pdf.worker.min.js`
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
 export default {
