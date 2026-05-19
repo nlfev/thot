@@ -12,7 +12,7 @@ export const APP_CONFIG = {
   appName: 'NLF Database',
   appVersion: '1.0.0',
   companyName: 'Your Company',
-  logoUrl: '/logo.png',
+  logoUrl: '/assets/logo.png',
   copyrightYear: 2026,
 
   // UI
