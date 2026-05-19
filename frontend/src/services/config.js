@@ -52,7 +52,7 @@ function getDefaultConfig() {
     appName: 'NLF Database',
     appVersion: '1.0.0',
     companyName: 'Your Company',
-    logoUrl: '/logo.png',
+    logoUrl: normalizeLogoUrl('/assets/logo.png'),
     copyrightYear: new Date().getFullYear(),
     itemsPerPageDefault: 10,
     itemsPerPageOptions: [10, 20, 50],

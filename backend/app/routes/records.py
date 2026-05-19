@@ -13,6 +13,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, or_, func
 from pypdf import PdfReader, PdfWriter
+from starlette.concurrency import run_in_threadpool
 
 from app.database import get_db
 from app.models import Record, Restriction, WorkStatus, KeywordName, KeywordLocation, Page, RecordAuthor, Author, AuthorType
@@ -42,6 +43,63 @@ from typing import Optional, List
 def _get_combined_pdf_source(page: Page) -> Optional[str]:
     """Prefer restriction PDFs in gallery-style combined downloads when available."""
     return page.restriction_file or page.current_file or page.location_file
+
+
+def _build_combined_pdf_bytes(
+    *,
+    record: Record,
+    pages: List[Page],
+    current_user,
+    restriction_message: str,
+) -> tuple[bytes, str]:
+    from app.services.pdf_watermark_service import create_watermarked_pdf
+    from app.utils.public_links import build_record_public_url_pdf
+
+    combined_writer = PdfWriter()
+    downloaded_at = datetime.now()
+
+    for page in pages:
+        source_pdf = _get_combined_pdf_source(page)
+        if not source_pdf:
+            continue
+
+        source_pdf_path = (config.UPLOAD_DIRECTORY / source_pdf).resolve()
+
+        if not source_pdf_path.exists() or not source_pdf_path.is_file():
+            continue
+
+        watermarked_bytes = create_watermarked_pdf(
+            source_pdf=source_pdf_path,
+            username=current_user.username,
+            downloaded_at=downloaded_at,
+            record_name=record.title,
+            record_signature=record.signature,
+            record_pdf_url=build_record_public_url_pdf(page.record.id) if page.record else None,
+            page_text=page.name,
+            watermark_image_path=config.get_watermark_image_path(),
+            watermark_copyright=config.WATERMARK_COPYRIGHT,
+            restriction_message=restriction_message,
+        )
+
+        watermarked_reader = PdfReader(BytesIO(watermarked_bytes))
+        for pdf_page in watermarked_reader.pages:
+            combined_writer.add_page(pdf_page)
+
+    if len(combined_writer.pages) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No valid PDF pages could be processed"
+        )
+
+    output = BytesIO()
+    combined_writer.write(output)
+    output.seek(0)
+
+    safe_filename = record.title or record.signature or str(record.id)
+    safe_filename = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in safe_filename)
+    safe_filename = safe_filename[:100]
+
+    return output.read(), f"{safe_filename}.pdf"
 
 router = APIRouter(
     prefix="/records",
@@ -499,63 +557,13 @@ async def download_combined_pdf(
         )
 
     try:
-        from app.services.pdf_watermark_service import create_watermarked_pdf
-        from app.utils.public_links import build_record_public_url_pdf
-
-        # Create a PDF writer to combine all pages
-        combined_writer = PdfWriter()
-        downloaded_at = datetime.now()
-        
-        # Process each page
-        for page in pages:
-            source_pdf = _get_combined_pdf_source(page)
-            if not source_pdf:
-                continue
-
-            source_pdf_path = (config.UPLOAD_DIRECTORY / source_pdf).resolve()
-            
-            if not source_pdf_path.exists() or not source_pdf_path.is_file():
-                # Skip pages where PDF file is missing
-                continue
-            
-            # Generate watermarked PDF for this page
-            watermarked_bytes = create_watermarked_pdf(
-                source_pdf=source_pdf_path,
-                username=current_user.username,
-                downloaded_at=downloaded_at,
-                record_name=record.title,
-                record_signature=record.signature,
-                record_pdf_url=build_record_public_url_pdf(page.record.id) if page.record else None,
-                page_text=page.name,
-                watermark_image_path=config.get_watermark_image_path(),
-                watermark_copyright=config.WATERMARK_COPYRIGHT,
-                restriction_message=restriction_message,
-            )
-            
-            # Read the watermarked PDF and append all its pages to the combined PDF
-            watermarked_reader = PdfReader(BytesIO(watermarked_bytes))
-            for pdf_page in watermarked_reader.pages:
-                combined_writer.add_page(pdf_page)
-        
-        # Check if we have any pages to output
-        if len(combined_writer.pages) == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No valid PDF pages could be processed"
-            )
-        
-        # Write combined PDF to bytes
-        output = BytesIO()
-        combined_writer.write(output)
-        output.seek(0)
-        combined_bytes = output.read()
-        
-        # Create safe filename from record title or signature
-        safe_filename = record.title or record.signature or record_id
-        # Remove or replace characters that are problematic in filenames
-        safe_filename = "".join(c if c.isalnum() or c in (' ', '-', '_') else '_' for c in safe_filename)
-        safe_filename = safe_filename[:100]  # Limit length
-        download_name = f"{safe_filename}.pdf"
+        combined_bytes, download_name = await run_in_threadpool(
+            _build_combined_pdf_bytes,
+            record=record,
+            pages=pages,
+            current_user=current_user,
+            restriction_message=restriction_message,
+        )
         
         return Response(
             content=combined_bytes,
